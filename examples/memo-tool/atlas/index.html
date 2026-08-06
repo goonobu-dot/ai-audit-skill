@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>コード・アトラス:業務メモ整理ツール(memo-tool)</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:-apple-system,"Hiragino Sans","Yu Gothic UI",sans-serif; color:#1a1a1c; background:#fff; font-size:16px; line-height:1.7; }
+  header { border-bottom:2px solid #0017c1; padding:20px 28px; }
+  header h1 { font-size:20px; }
+  header .sub { color:#414143; font-size:14px; }
+  .datasummary { margin-top:10px; display:flex; gap:10px; flex-wrap:wrap; }
+  .pill { border:1px solid #d8d8db; border-radius:6px; padding:4px 12px; font-size:13px; background:#f8f8fb; }
+  .pill.safe { border-color:#197a4b; color:#197a4b; background:#eef7f1; font-weight:600; }
+  .pill.audit { border-color:#0017c1; color:#0017c1; background:#eef1fb; font-weight:600; }
+  .layout { display:flex; min-height:70vh; }
+  nav { width:220px; border-right:1px solid #d8d8db; padding:16px 0; flex-shrink:0; }
+  nav .navtitle { font-size:12px; color:#767678; padding:0 16px 8px; }
+  nav a { display:block; padding:9px 16px; color:#1a1a1c; text-decoration:none; font-size:14px; border-left:3px solid transparent; }
+  nav a.active, nav a:hover { background:#eef1fb; border-left-color:#0017c1; color:#0017c1; font-weight:600; }
+  main { flex:1; padding:24px 32px; max-width:860px; }
+  .page { display:none; }
+  .page.show { display:block; }
+  h2 { font-size:18px; border-left:4px solid #0017c1; padding-left:10px; margin-bottom:8px; }
+  h3 { font-size:15px; margin:18px 0 8px; color:#414143; }
+  .lead { color:#414143; margin-bottom:14px; }
+  .flow { background:#f8f8fb; border:1px solid #d8d8db; border-radius:8px; padding:12px; margin-bottom:8px; overflow-x:auto; }
+  .noext { font-size:13px; color:#197a4b; font-weight:600; margin-bottom:16px; }
+  .step { border:1px solid #d8d8db; border-radius:8px; padding:12px 16px; margin-bottom:10px; }
+  .step b.no { color:#0017c1; margin-right:6px; }
+  details { margin-top:8px; }
+  summary { cursor:pointer; display:inline-block; font-family:ui-monospace,Menlo,monospace; font-size:12.5px; background:#eef1fb; color:#0017c1; border:1px solid #b7c2ee; border-radius:5px; padding:2px 10px; margin-right:6px; }
+  .evidence { border-left:3px solid #0017c1; margin:8px 0 4px; padding:8px 12px; background:#fbfbfd; }
+  pre { font-family:ui-monospace,Menlo,monospace; font-size:12.5px; line-height:1.55; overflow-x:auto; background:#f2f2f5; border-radius:6px; padding:10px 12px; margin:6px 0; }
+  pre .hl { background:#fff3b8; display:inline-block; width:100%; }
+  .explain { font-size:13.5px; color:#414143; }
+  .notice { border:1px solid #ec0000; background:#fdf1f1; color:#a30000; border-radius:8px; padding:10px 14px; font-size:14px; margin-bottom:14px; }
+  table { border-collapse:collapse; width:100%; font-size:14px; margin:8px 0 16px; }
+  th,td { border:1px solid #d8d8db; padding:7px 10px; text-align:left; }
+  th { background:#f8f8fb; font-weight:600; }
+  footer { border-top:1px solid #d8d8db; margin-top:32px; padding:16px 28px; font-size:12.5px; color:#767678; }
+  svg text { font-family:inherit; }
+</style>
+</head>
+<body>
+<header>
+  <h1>コード・アトラス:業務メモ整理ツール(memo-tool)</h1>
+  <div class="sub">社内の作業メモをキーワード検索し、古いメモをアーカイブフォルダへ整理する、1ファイル(memo.py・111行)の小さな道具です。</div>
+  <div class="datasummary">
+    <span class="pill safe">外部への送信:なし(完全ローカル動作)</span>
+    <span class="pill">データの保存場所:このPCの memos/ と archive/ フォルダのみ</span>
+    <span class="pill">削除機能:なし(整理は「移動」のみ)</span>
+    <span class="pill audit">監査済:稼働可|報告書 MEMO-20260806-001|2026-08-06|Codex独立監査(生成時に監査対象ハッシュの一致を確認)</span>
+  </div>
+</header>
+<div class="layout">
+<nav>
+  <div class="navtitle">目次</div>
+  <a href="#" class="active" data-page="overview">全体像</a>
+  <div class="navtitle" style="margin-top:12px">機能</div>
+  <a href="#" data-page="search">メモを検索する</a>
+  <a href="#" data-page="archive">古いメモを整理する</a>
+  <a href="#" data-page="safety">安全のための仕組み</a>
+</nav>
+<main>
+
+<section class="page show" id="overview">
+  <h2>全体像 — データはこう流れます</h2>
+  <p class="lead">このツールに入ってくるのは「あなたが打つコマンド」と「memos/ フォルダのメモファイル」だけ。出ていく先は「画面への表示」と「archive/ フォルダへの移動」だけです。</p>
+  <div class="flow">
+  <svg viewBox="0 0 780 190" width="780" height="190" role="img" aria-label="全体データフロー図">
+    <defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#767678"/></marker></defs>
+    <rect x="10" y="30" width="150" height="52" rx="8" fill="#eef1fb" stroke="#0017c1"/><text x="85" y="52" text-anchor="middle" font-size="13" fill="#0017c1" font-weight="bold">コマンド入力</text><text x="85" y="70" text-anchor="middle" font-size="11" fill="#414143">search / archive</text>
+    <rect x="10" y="110" width="150" height="52" rx="8" fill="#eef1fb" stroke="#0017c1"/><text x="85" y="132" text-anchor="middle" font-size="13" fill="#0017c1" font-weight="bold">メモファイル</text><text x="85" y="150" text-anchor="middle" font-size="11" fill="#414143">memos/*.txt</text>
+    <rect x="290" y="68" width="180" height="56" rx="8" fill="#fff" stroke="#414143"/><text x="380" y="90" text-anchor="middle" font-size="13" font-weight="bold" fill="#1a1a1c">memo.py(処理本体)</text><text x="380" y="108" text-anchor="middle" font-size="11" fill="#414143">検索・日付判定・移動</text>
+    <rect x="600" y="20" width="160" height="52" rx="8" fill="#eef7f1" stroke="#197a4b"/><text x="680" y="42" text-anchor="middle" font-size="13" fill="#197a4b" font-weight="bold">画面に表示</text><text x="680" y="60" text-anchor="middle" font-size="11" fill="#414143">該当行・結果件数</text>
+    <rect x="600" y="110" width="160" height="52" rx="8" fill="#eef7f1" stroke="#197a4b"/><text x="680" y="132" text-anchor="middle" font-size="13" fill="#197a4b" font-weight="bold">archive/ へ移動</text><text x="680" y="150" text-anchor="middle" font-size="11" fill="#414143">古いメモの保管</text>
+    <line x1="160" y1="56" x2="288" y2="86" stroke="#767678" stroke-width="1.5" marker-end="url(#a)"/>
+    <line x1="160" y1="136" x2="288" y2="106" stroke="#767678" stroke-width="1.5" marker-end="url(#a)"/>
+    <line x1="470" y1="82" x2="598" y2="50" stroke="#767678" stroke-width="1.5" marker-end="url(#a)"/><text x="534" y="52" font-size="11" fill="#414143">検索結果</text>
+    <line x1="470" y1="110" x2="598" y2="132" stroke="#767678" stroke-width="1.5" marker-end="url(#a)"/><text x="520" y="136" font-size="11" fill="#414143">古いメモ</text>
+  </svg>
+  </div>
+  <p class="noext">外部への送信:なし — コード全文にインターネット通信の命令(urllib・requests・socket 等)が存在しないことを、パターン検索と独立監査AI(Codex)の両方で確認済み。</p>
+  <h3>ファイル構成</h3>
+  <table>
+    <tr><th>場所</th><th>役割</th></tr>
+    <tr><td>memo.py</td><td>処理のすべて(111行)。このアトラスが解説している本体</td></tr>
+    <tr><td>plan.md</td><td>仕様書。機能・禁止事項(外部通信禁止・削除禁止)・検収基準を定義</td></tr>
+    <tr><td>memos/</td><td>現役のメモ置き場(あなたが作るテキストファイル)</td></tr>
+    <tr><td>archive/</td><td>古いメモの保管庫(ツールが自動作成)</td></tr>
+    <tr><td>audit/</td><td>監査報告書・監査調書・未検証面台帳・封印記録</td></tr>
+  </table>
+</section>
+
+<section class="page" id="search">
+  <h2>機能:メモを検索する</h2>
+  <p class="lead"><code>python memo.py search 会議</code> のように打つと、全メモから「会議」を含む行を探して表示します。</p>
+  <div class="step"><b class="no">STEP 1</b>memos/ フォルダの中から「.txt で終わる通常のファイル」だけを選び出します(ショートカットのような特殊ファイルは対象外)。
+    <details><summary>memo.py:28-38</summary><div class="evidence"><pre>def iter_memo_files():
+    """memos/ 直下の通常ファイルの .txt のみを対象にする(シンボリックリンクは除外)"""
+    check_dir_safety(MEMO_DIR)
+    for name in sorted(os.listdir(MEMO_DIR)):
+        path = os.path.join(MEMO_DIR, name)
+        if not name.endswith(".txt"):
+            continue
+        if os.path.islink(path) or not os.path.isfile(path):</pre><div class="explain">フォルダの中身を1つずつ確認し、テキストファイル以外・リンク(別の場所への近道ファイル)を除外しています。メモ置き場の外のファイルを誤って触らないための入口検査です。</div></div></details>
+  </div>
+  <div class="step"><b class="no">STEP 2</b>各メモを1行ずつ読み、キーワードを含む行を「ファイル名:行番号: 内容」の形で画面に表示します。
+    <details><summary>memo.py:41-49</summary><div class="evidence"><pre>def search(keyword):
+    hits = 0
+    for name, path in iter_memo_files():
+        try:
+            with open(path, encoding="utf-8") as f:
+                for i, line in enumerate(f, 1):
+<span class="hl">                    if keyword in line:</span>
+<span class="hl">                        print(f"{name}:{i}: {line.rstrip()}")</span></pre><div class="explain">「その行にキーワードが含まれるか」を判定し、含まれば画面に印字(print)します。印字=このPCの画面に出すだけで、どこかへ送信するものではありません。</div></div></details>
+  </div>
+  <div class="step"><b class="no">STEP 3</b>最後に該当した行数を表示します。読めないファイルがあった場合は「読み取り失敗」と表示し、終了コード(処理の成否を表す番号)を失敗(1)にします。
+    <details><summary>memo.py:50-52, 106-107</summary><div class="evidence"><pre>        except (OSError, UnicodeDecodeError) as e:
+            fail(f"読み取り失敗: {name}: {e}")
+    print(f"該当 {hits} 行")
+    ...
+    if FAILED:
+        sys.exit(1)</pre><div class="explain">途中で問題が起きたのに「成功しました」と見えてしまう事故を防ぐ仕組みです(監査指摘F-05への対応として追加されました)。</div></div></details>
+  </div>
+</section>
+
+<section class="page" id="archive">
+  <h2>機能:古いメモを整理する</h2>
+  <p class="lead"><code>python memo.py archive 30</code> のように打つと、30日以上更新されていないメモを archive/ フォルダへ<strong>移動</strong>します。<strong>削除は決して行いません</strong>(仕様書の禁止事項)。</p>
+  <div class="step"><b class="no">STEP 1</b>日数の指定を検査します。1〜36500日の範囲外(例:-5 や 極端な巨大数)は受け付けず、その場で中止します。
+    <details><summary>memo.py:99-101</summary><div class="evidence"><pre>        if days < 1 or days > 36500:
+            print("日数は1〜36500の範囲で指定してください(事故防止)")
+            sys.exit(1)</pre><div class="explain">「archive -1」のような入力ミスで全メモが一括対象になる事故を防ぎます(監査指摘F-04への対応)。</div></div></details>
+  </div>
+  <div class="step"><b class="no">STEP 2</b>各メモの「最終更新日」を調べ、指定日数より古いものだけを対象にします。
+    <details><summary>memo.py:58-62</summary><div class="evidence"><pre>    limit = time.time() - days * 86400
+    moved = 0
+    for name, path in iter_memo_files():
+        try:
+<span class="hl">            if os.path.getmtime(path) < limit:</span></pre><div class="explain">getmtime はファイルの最終更新日時を調べる命令です。「今から◯日前」より古いかどうかだけを判定します。</div></div></details>
+  </div>
+  <div class="step"><b class="no">STEP 3</b>archive/ に同じ名前のファイルがあれば上書きせず、「old.1.txt」のように連番を付けて<strong>移動</strong>します。
+    <details><summary>memo.py:63-77</summary><div class="evidence"><pre>                dest_name = name
+                n = 1
+                while True:
+                    dest = os.path.join(ARCHIVE_DIR, dest_name)
+                    try:
+                        fd = os.open(dest, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+                        os.close(fd)
+                        break
+                    except FileExistsError:
+                        dest_name = f"{base}.{n}{ext}"
+                        n += 1
+<span class="hl">                os.replace(path, dest)</span></pre><div class="explain">os.replace は「移動」の命令です。このコードのどこにも削除の命令(os.remove 等)は存在しません——これは独立監査AIが全文検索で確認済みです。既存の保管メモを誤って上書きしない仕組み(O_EXCL=排他的作成)も入っています(監査指摘F-01・F-07への対応)。</div></div></details>
+  </div>
+</section>
+
+<section class="page" id="safety">
+  <h2>安全のための仕組み</h2>
+  <p class="lead">仕様書の禁止事項(外部通信しない・削除しない・テレメトリを取らない)を守るための実装と、その根拠です。</p>
+  <div class="step"><b class="no">守り 1</b><strong>外部通信の命令が存在しない</strong>:コード全文に通信系の命令(urllib・requests・socket・http)が1つもありません。
+    <details><summary>検証方法(監査調書W3)</summary><div class="evidence"><div class="explain">パターン検索(grep)で通信系命令ゼロを機械的に確認し、さらに独立監査AI(Codex)が同じ検索と実行試験で確認しています。証跡は audit/audit-workpaper.md。</div></div></details>
+  </div>
+  <div class="step"><b class="no">守り 2</b><strong>メモ置き場の外に出ない</strong>:memos/ や archive/ が「別の場所への近道(シンボリックリンク)」にすり替えられていた場合、処理を中止します。
+    <details><summary>memo.py:21-25</summary><div class="evidence"><pre>def check_dir_safety(d):
+    """基準ディレクトリ自体がシンボリックリンクなら拒否(領域外への逸脱防止)"""
+    if os.path.islink(d):
+        print(f"{d} がシンボリックリンクのため処理を中止します")
+        sys.exit(1)</pre><div class="explain">意図しない場所のファイルを検索・移動してしまう事故の防止です(監査指摘F-06への対応)。</div></div></details>
+  </div>
+  <div class="step"><b class="no">守り 3</b><strong>フォルダがなければ何もしない</strong>:memos/ フォルダが存在しない場合は、処理を始める前に停止します。
+    <details><summary>memo.py:87-89</summary><div class="evidence"><pre>    if not os.path.isdir(MEMO_DIR):
+        print("memos/ フォルダがありません")
+        sys.exit(1)</pre><div class="explain">想定外の場所で実行されたときに、黙って「成功」と表示せず明示的に停止します。</div></div></details>
+  </div>
+</section>
+
+</main>
+</div>
+<footer>
+  この文書について — 生成日:2026-08-06 / 対象コミット:7fcb280(封印 audit/seal.json のハッシュと一致することを生成時に確認)/ 生成:code-atlas スキル(Claude)/ 整合性検証:全根拠リンク(file:行番号)の実在・内容一致を機械確認、外部通信の記載はパターン検索結果と突合。本書はAIが生成し、コードとの対応を検証した文書です。すべての説明は根拠リンクから人手でも検証できます。
+</footer>
+<script>
+document.querySelectorAll("nav a").forEach(a => a.addEventListener("click", e => {
+  e.preventDefault();
+  document.querySelectorAll("nav a").forEach(x => x.classList.remove("active"));
+  document.querySelectorAll(".page").forEach(p => p.classList.remove("show"));
+  a.classList.add("active");
+  document.getElementById(a.dataset.page).classList.add("show");
+}));
+</script>
+</body>
+</html>

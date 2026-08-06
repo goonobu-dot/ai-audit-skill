@@ -1,0 +1,9 @@
+{
+  "sealed_at": "2026-08-06",
+  "commit": "7fcb280600111460e2f5680e47e3c0ac1830981d",
+  "artifacts": {
+    "memo.py": "sha256:78dcfbc9cc039e8360d81bb549683663d6b95ace00ef086a7f561a92e3b1f6c4",
+    "plan.md": "sha256:a03c526dc4bb5eb0eebb925028ac4ad7ec0c9f8c3cd2e14ccbcc9fe4e0e34908"
+  },
+  "note": "上記のいずれかが変更された時点で監査報告書 MEMO-20260806-001 の監査意見は失効する"
+}
