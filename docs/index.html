@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ai-audit マニュアル — AI相互監査+監査報告書生成スキル</title>
+<title>ai-audit マニュアル — 目的・使い方・メリット・監査内容</title>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
   body { font-family:-apple-system,"Hiragino Sans","Yu Gothic UI",sans-serif; color:#1a1a1c; background:#fff; font-size:16px; line-height:1.75; }
@@ -44,9 +44,15 @@
   .kv dt { font-weight:600; color:#414143; white-space:nowrap; }
   .flownum { display:inline-block; background:#0017c1; color:#fff; border-radius:50%; width:24px; height:24px; text-align:center; line-height:24px; font-size:13px; font-weight:700; margin-right:8px; flex-shrink:0; }
   .phase { display:flex; align-items:flex-start; border:1px solid #d8d8db; border-radius:8px; padding:12px 16px; margin-bottom:10px; }
+  .actions { display:flex; gap:10px; flex-wrap:wrap; margin-top:16px; }
+  .btn { display:inline-block; border:1px solid #0017c1; border-radius:7px; padding:8px 14px; text-decoration:none; font-size:14px; font-weight:600; }
+  .btn.primary { color:#fff; background:#0017c1; }
+  .cards { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; margin:14px 0 20px; }
+  .card { border:1px solid #d8d8db; border-radius:8px; padding:14px; background:#fff; }
+  .card strong { display:block; margin-bottom:6px; color:#0017c1; }
   footer { border-top:1px solid #d8d8db; padding:20px 32px; font-size:12.5px; color:#767678; }
   .svgwrap { background:#f8f8fb; border:1px solid #d8d8db; border-radius:8px; padding:12px; margin:12px 0 18px; overflow-x:auto; }
-  @media (max-width: 860px) { .layout { flex-direction:column; } nav.toc { width:100%; position:static; max-height:none; border-right:none; border-bottom:1px solid #d8d8db; } main { padding:24px 20px 60px; } }
+  @media (max-width: 860px) { .layout { flex-direction:column; } nav.toc { width:100%; position:static; max-height:none; border-right:none; border-bottom:1px solid #d8d8db; } main { padding:24px 20px 60px; } .cards { grid-template-columns:1fr; } }
   @media print { nav.toc { display:none; } }
 </style>
 </head>
@@ -60,6 +66,11 @@
     <span class="badge">成果物:品質プロファイル/要求マトリクス/報告書/調書/未検証台帳/封印</span>
     <span class="badge">付属:code-atlas(非エンジニア向けシステム地図生成)</span>
     <span class="badge">Version 1.2 Preview(2026-08)</span>
+  </div>
+  <div class="actions">
+    <a class="btn primary" href="getting-started.md">5分で試す</a>
+    <a class="btn" href="audit-notes.md">監査内容の詳しい備考</a>
+    <a class="btn" href="https://github.com/goonobu-dot/ai-audit-skill">GitHubで見る</a>
   </div>
 </header>
 
@@ -89,6 +100,11 @@
   <a href="#atlas">11. code-atlas(付属スキル)</a>
   <a href="#limits">12. 限界と免責(必読)</a>
   <a href="#faq">13. よくある質問</a>
+  <div class="t">活用ガイド</div>
+  <a href="#freelance">14. 副業・受託開発で使う</a>
+  <a href="#privacy">15. 公開時の情報保護</a>
+  <a href="audit-notes.md">監査内容の詳しい備考</a>
+  <a href="github-growth-guide.md">OSSを育てる方法</a>
 </nav>
 
 <main>
@@ -96,6 +112,20 @@
 <section id="intro">
   <h2>1. このスキルは何か</h2>
   <p><strong>ai-audit</strong> は、AIコーディングエージェントで開発したシステムを、<strong>開発時の説明から切り離した別系統AIレビューと機械検査</strong>で評価し、その過程と結果を要求事項単位の証拠付き技術監査報告書として出力する、Claude Code / Codex 用のPreviewスキルです。既定は読み取り専用の <code>audit-only</code> です。別のAI提供者を使うことは組織的な第三者性を意味しません。</p>
+  <h3>このシステムの目的</h3>
+  <p>目的は、AI開発を無条件に安全だと宣言することではありません。<strong>要求、実施した検査、得られた証拠、判定、未検証事項、承認</strong>を一つの流れで追跡し、開発者以外にも説明できる状態を作ることです。</p>
+  <div class="cards">
+    <div class="card"><strong>品質を見える化</strong>「問題なし」ではなく、何をどの方法で確かめたかを証拠と一緒に残します。</div>
+    <div class="card"><strong>納品説明を標準化</strong>顧客、セキュリティ担当、外部専門家が確認しやすい共通資料を生成します。</div>
+    <div class="card"><strong>限界まで正直に記録</strong>未実施の検査や残余リスクを隠さず、次に必要な専門検証を明らかにします。</div>
+  </div>
+  <h3>利用するメリット</h3>
+  <ul>
+    <li>個人開発でも、レビュー・証拠保存・判定・承認を再現可能な手順にできます</li>
+    <li>受託案件で、品質管理を口頭説明ではなく納品物として示せます</li>
+    <li>外部診断へ渡す対象範囲と未検証領域が明確になり、説明の往復を減らせます</li>
+    <li>変更後に封印照合が失敗するため、「監査したコード」と「納品コード」の取り違えを検出できます</li>
+  </ul>
   <p>生成される標準成果物は次の6点です。</p>
   <div class="tablewrap"><table>
     <tr><th>成果物</th><th>役割</th><th>読者</th></tr>
@@ -110,7 +140,7 @@
   ・AIでアプリ・業務システムを作ったが、「本当に大丈夫なのか」を口頭ではなく文書で示したい開発者(個人・企業を問わず)<br>
   ・納品物に「AI開発でもここまで検証しています」という品質説明資料を付けたい個人開発者・開発会社<br>
   ・官公庁・取引先などの監査・審査に説明責任を負う組織で、AIで作ったシステムの検証記録・証跡が必要な人</div>
-  <p>本スキルの文書設計(証跡・検証範囲と限界の開示・指摘対応の記録・承認)は、実際に公的機関の監査・審査を受ける実務の作法をAI開発向けに翻案したものです。「監査に耐える文書化」の技術は、コードが書けるかどうかとは別のノウハウであり、エンジニア・非エンジニアを問わず必要になります。</p>
+  <p>本スキルの文書設計は、公開された品質・セキュリティ標準、監査技法、セキュア開発の考え方をAI開発向けに整理したものです。「監査に耐える文書化」は、コードの実装力とは別に必要になる品質管理の技術です。</p>
   <p>単発のコードレビューが欲しいだけなら、レビューコメントを返すツールで足ります。このスキルの価値は、<strong>「何を・どの基準で・どこまで検査し、何を検査していないか」まで文書として残る</strong>ことにあります。</p>
 </section>
 
@@ -291,7 +321,7 @@ brew install jscpd      # 複製コード検出</code></pre>
     <tr><td>個人情報保護法(APPI)安全管理措置</td><td>個人データを扱う事業者に求められる技術的措置(識別認証・アクセス制御・記録・暗号化・監視)</td><td>領域1の検証項目</td></tr>
     <tr><td>ISO/IEC 42001・NIST AI RMF(参考)</td><td>AIマネジメントの国際規格と米国のAIリスク管理フレームワーク。※AIシステム全般向けであることを注記して使用</td><td>領域7(ログ・継続監視・再監査)の翻案元</td></tr>
   </table></div>
-  <div class="box danger"><b class="tag">安全関連・OT・規制対象は強制停止</b>発電所、産業制御、機能安全などでは、一般IT向けの品質プロファイルだけで <code>acceptable-within-scope</code> にできません。案件固有の専門規格、ハザードから安全要求・試験・証拠・逸脱・承認までの追跡、FAT/SAT、独立V&amp;V、責任者承認を別途要求します。このスキルは法定検査や運転許可を代替しません。</div>
+  <div class="box danger"><b class="tag">安全関連・OT・規制対象は強制停止</b>安全関連インフラ、産業制御、機能安全などでは、一般IT向けの品質プロファイルだけで <code>acceptable-within-scope</code> にできません。案件固有の専門規格、ハザードから安全要求・試験・証拠・逸脱・承認までの追跡、FAT/SAT、独立V&amp;V、責任者承認を別途要求します。このスキルは法定検査や運転許可を代替しません。</div>
 </section>
 
 <section id="report">
@@ -365,11 +395,37 @@ brew install jscpd      # 複製コード検出</code></pre>
   <p>スキルが対話で「目的・主要機能・禁止事項・扱うデータ」を1ページに文書化するところから始めます。この仕様書化自体が、AI開発の品質を大きく上げる最初の一歩です。</p>
 </section>
 
+<section id="freelance">
+  <h2>14. 副業・受託開発で使う</h2>
+  <p>営業で伝える価値は「絶対に安全」ではなく、<strong>品質確認の工程と限界を説明できること</strong>です。提案時、開発中、納品時の3段階で同じ要求マトリクスを更新すると、品質確認が後付けになりません。</p>
+  <div class="tablewrap"><table>
+    <tr><th>段階</th><th>使い方</th><th>顧客へ渡すもの</th></tr>
+    <tr><td>提案前</td><td>対象範囲、禁止事項、個人情報、外部連携、必要な検証深度を確認する</td><td>監査予定範囲と対象外の一覧</td></tr>
+    <tr><td>開発中</td><td>要求IDとテスト・証拠を対応付け、重大指摘を修正して再検証する</td><td>要求マトリクスの中間版</td></tr>
+    <tr><td>納品前</td><td>コードを封印し、報告書・調書・未検証台帳を検証する</td><td>標準6成果物と利用条件</td></tr>
+    <tr><td>外部診断</td><td>未検証面台帳を外部専門家の検査範囲へ変換する</td><td>再実行手順と対象コミット</td></tr>
+  </table></div>
+  <div class="box important"><b class="tag">提案書で使える表現</b>「公開標準を参照した要求マトリクスを作成し、機械検査・別系統AIレビュー・人間承認を区別して記録します。報告書には未検証事項と残余リスクも記載します。」</div>
+  <p>料金メニュー、契約上の境界、納品時の説明順、公開ポートフォリオの作り方は、<a href="freelance-playbook.md">副業・受託開発での活用ガイド</a>にまとめています。</p>
+</section>
+
+<section id="privacy">
+  <h2>15. 公開時の情報保護</h2>
+  <p>公開リポジトリと監査サンプルには、作者や利用者の勤務先、職歴、顧客名、案件名、実データ、端末の絶対パス、メールアドレス、秘密値を含めません。業界例が必要な場合も、個人との関係を示さない一般的な表現と架空データを使います。</p>
+  <ul>
+    <li>監査前に対象コードと仕様書の秘密値・個人情報を確認する</li>
+    <li>AI出力と監査調書はマスキングしてから保存する</li>
+    <li>公開前にREADME、docs、Issue、Git履歴、成果物を再確認する</li>
+    <li>判断に迷う情報は公開せず、利用者側で差し替えられるプレースホルダーにする</li>
+  </ul>
+  <p>具体的な確認コマンドと承認チェックは、<a href="privacy-checklist.md">公開前プライバシー・秘密情報チェック</a>を利用してください。</p>
+</section>
+
 </main>
 </div>
 
 <footer>
-  ai-audit マニュアル v1.2 Preview(2026-08)/ 公知標準を参照した独自手順であり、認証・第三者保証・安全保証を意味しません。/ License: MIT
+  ai-audit マニュアル v1.2 Preview(2026-08)/ 公知標準を参照した独自手順であり、認証・第三者保証・安全保証を意味しません。/ <a href="https://github.com/goonobu-dot/ai-audit-skill">GitHub</a> / License: MIT
 </footer>
 </body>
 </html>

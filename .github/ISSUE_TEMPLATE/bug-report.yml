@@ -1,0 +1,43 @@
+name: Bug report
+description: 個人情報・秘密情報を除いた不具合報告
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        顧客名、実コード、秘密値、個人情報、未公開脆弱性は記載しないでください。
+  - type: textarea
+    id: goal
+    attributes:
+      label: 実行しようとしたこと
+      placeholder: サンプル一式をvalidate-bundleで検証した
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期待した結果
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: 実際の結果
+      description: 秘密値と個人情報をマスクしてください。
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: 環境
+      placeholder: macOS / Python 3.x / Codex CLIのバージョン
+    validations:
+      required: true
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: 公開前確認
+      options:
+        - label: 顧客情報、個人情報、秘密情報、非公開コードを含めていません
+          required: true
