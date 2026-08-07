@@ -28,8 +28,12 @@ TOKEN_PATTERNS = (
 BEARER_PATTERN = re.compile(r"(?i)\bBearer\s+[A-Za-z0-9._~+/=-]{16,}")
 ASSIGNMENT_PATTERN = re.compile(
     r"(?i)([\"']?\b(?:api[_-]?key|access[_-]?token|auth(?:orization)?|client[_-]?secret|"
-    r"credential|jwt|password|passwd|pin|private[_-]?key|recovery[_-]?code|secret|token)\b[\"']?\s*[:=]\s*[\"']?)"
-    r"([^\s\"']{4,})([\"']?)"
+    r"credential|jwt|password|passwd|pin|private[_-]?key|recovery[_-]?code|secret|token)\b[\"']?\s*[:=]\s*)"
+    r"(?:(['\"])(.*?)\2|([^\s,}\]]+))"
+)
+PRIVATE_KEY_PATTERN = re.compile(
+    r"-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----.*?-----END [A-Z0-9 ]*PRIVATE KEY-----",
+    re.DOTALL,
 )
 
 
@@ -45,13 +49,17 @@ def _replacement(secret: str, include_fingerprint: bool = True) -> str:
 
 def redact_text(text: str) -> str:
     """Mask common secrets; fingerprint only unassigned high-entropy tokens."""
-    text = BEARER_PATTERN.sub(lambda match: _replacement(match.group(0)), text)
+    text = PRIVATE_KEY_PATTERN.sub("[REDACTED PRIVATE KEY]", text)
+    text = BEARER_PATTERN.sub(
+        lambda match: _replacement(match.group(0), include_fingerprint=False), text
+    )
 
     def redact_assignment(match: re.Match[str]) -> str:
-        value = match.group(2)
+        quote = match.group(2) or ""
+        value = match.group(3) if match.group(2) else match.group(4)
         if value.startswith("[REDACTED:"):
             return match.group(0)
-        return f"{match.group(1)}{_replacement(value, include_fingerprint=False)}{match.group(3)}"
+        return f"{match.group(1)}{quote}{_replacement(value, include_fingerprint=False)}{quote}"
 
     text = ASSIGNMENT_PATTERN.sub(redact_assignment, text)
     for pattern in TOKEN_PATTERNS:

@@ -39,6 +39,10 @@ class AuditGuardTests(unittest.TestCase):
             "pin=123456\n"
             "recovery_code=RecoverMe1234567890ABC\n"
             "Authorization: Bearer vendorToken_0123456789abcdef\n"
+            "Authorization: Bearer AAAAAAAAAAAAAAAA\n"
+            "password=abc\n"
+            'password="correct horse battery staple"\n'
+            'private_key="-----BEGIN PRIVATE KEY----- secret material -----END PRIVATE KEY-----"\n'
             'access_token: "opaqueVendorToken0123456789abcdef"\n'
             '{"access_token": "a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1"}\n'
             "jwt=eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.signature0123456789\n"
@@ -51,14 +55,17 @@ class AuditGuardTests(unittest.TestCase):
         self.assertNotIn("AKIAIOSFODNN7EXAMPLE", redacted)
         self.assertNotIn("CorrectHorseBatteryStaple", redacted)
         self.assertNotIn("vendorToken_0123456789abcdef", redacted)
+        self.assertNotIn("Bearer AAAAAAAAAAAAAAAA", redacted)
+        self.assertNotIn("horse battery staple", redacted)
+        self.assertNotIn("secret material", redacted)
         self.assertNotIn("opaqueVendorToken0123456789abcdef", redacted)
         self.assertNotIn("a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1", redacted)
         self.assertNotIn("eyJhbGciOiJIUzI1NiJ9", redacted)
         self.assertIn("password: [REDACTED]", redacted)
-        self.assertIn("password=[REDACTED]", redacted)
+        self.assertGreaterEqual(redacted.count("password=[REDACTED]"), 2)
         self.assertIn("pin=[REDACTED]", redacted)
         self.assertIn("recovery_code=[REDACTED]", redacted)
-        self.assertGreaterEqual(redacted.count("[REDACTED:sha256:"), 3)
+        self.assertGreaterEqual(redacted.count("[REDACTED:sha256:"), 2)
 
     def test_redact_cli_can_delete_raw_temporary_input_after_safe_output(self):
         from scripts.audit_guard import main
@@ -195,6 +202,19 @@ class AuditGuardTests(unittest.TestCase):
         errors = scan_artifacts(self.repo / "audit")
 
         self.assertTrue(any("raw secret-like value: evidence.yaml" in error for error in errors))
+
+    def test_publication_scan_rejects_spaced_quoted_password(self):
+        from scripts.audit_guard import redact_text, scan_artifacts
+
+        evidence = self.repo / "audit" / "spaced.json"
+        raw = '{"password": "correct horse battery staple"}\n'
+        evidence.write_text(raw, encoding="utf-8")
+
+        self.assertTrue(scan_artifacts(self.repo / "audit"))
+        evidence.write_text(redact_text(raw), encoding="utf-8")
+
+        self.assertNotIn("horse battery staple", evidence.read_text(encoding="utf-8"))
+        self.assertEqual([], scan_artifacts(self.repo / "audit"))
 
 
 if __name__ == "__main__":
