@@ -1,74 +1,69 @@
 # 監査調書:業務メモ整理ツール(memo-tool)
 
-対応する報告書:MEMO-20260806-001 / 目的:第三者が本監査を理解・再実行できる全証跡
+対応報告書:MEMO-20260807-002。公開用証拠はすべて秘密値・ローカル絶対パスを除去済み。
 
 ## W1. 監査環境
 
-- 実施日時:2026-08-06
-- 対象コミットID:初回監査 `5f4cc93c250cd0e0266898cd0886b145cca8edda` → 最終 `7fcb280600111460e2f5680e47e3c0ac1830981d`(修正2コミット。履歴は `git log` 参照)
-- 実行環境:macOS(Darwin 25.5.0)、Python 3、zsh
-- 監査AI:Codex CLI 0.144.5 / モデル gpt-5.6-sol / 推論設定 xhigh / セッションID 019fd5fb-c15e-7500-8554-06d9b64c502c
+- 実施日:2026-08-07
+- 対象:このディレクトリの `seal.json` に列挙した全追跡ファイル（`audit/` と `atlas/` は生成物として除外）
+- 実行環境:macOS / Python 3.14.6
+- 監査AI:Codex CLI 0.144.5 / gpt-5.6-sol / xhigh
+- 実装AI:Claude（Anthropic）。監査AIとは提供元が異なる
+- CodexセッションID:`019fda66-ba45-7990-881b-2d11821d77ef`
+- 権限:Codexはread-only。欠陥fixtureと最終コードの試験はいずれも一時ディレクトリ内で実行
 
-## W2. リスク格付けの根拠(領域0)
+## W2. リスク格付け
 
-- 影響度:低(仕様書「利用者は作成者本人のみ」。誤動作は個人の手間)
-- データ機密度:中(仕様書「社内の作業メモ」=社内情報。個人情報は含まない運用)
-- 自律性:低(人間が毎回コマンド実行。自動実行なし)
-- 決定メニュー:**標準**(機密度「中」があるため簡易不可)
+- 影響度:低（単独利用の補助ツール）
+- データ機密度:中（社内メモ）
+- 自律性:低（人が毎回CLIを実行）
+- メニュー:標準
+- 運用前提:macOS/Linux、単独利用、実行中に他プロセスが対象ディレクトリを変更しない
 
-## W3. ツール層検査の記録(Phase 2)
+## W3. 機械検査
 
-### ツール検出
-`which gitleaks trufflehog semgrep jscpd` → **全て未導入**。以下は監査基準書規定の代替手法で実施(この限界は未検証面台帳#1に記録)。
+- 外部依存:なし（Python標準ライブラリのみ）
+- 外部通信:対象コードにHTTP、socket、外部プロセス実行なし
+- 秘密情報:公開証拠に実在の秘密値なし。高エントロピートークンだけ照合用SHA-256短縮指紋を許容し、パスワード等は指紋も残さない
+- 受入試験:`python3 -m unittest discover -s tests -v` → 9 tests / exit 0
+- 証拠:`evidence/uat-log.txt`
 
-### シークレット検査(基準1-1)
-- 実行コマンド:`grep -rniE "(api[_-]?key|secret|password|token|sk-live|sk-test|AKIA[0-9A-Z]{16})" --include="*.py" --include="*.json" --include="*.md" .`
-- 初回結果:memo.py:12 `API_KEY = "sk-live-..."` を検出(→F-03)
-- 最終結果:検出ゼロ(Codex再監査でも `rg` による同種検索で検出ゼロを確認)
-- 判定:合(修正後)
+## W4. Codex独立監査
 
-### 通信経路の全数検索(基準1-2/1-3)
-- 実行コマンド:`grep -rniE "(https?://|urllib|requests\.|socket\.|fetch\()" --include="*.py" .`
-- 初回結果:memo.py 7,13,19,20行に外部送信経路(→F-02)
-- 最終結果:検出ゼロ
-- 判定:合(修正後)
+- 初回プロンプト:`evidence/codex-initial-prompt.txt`
+- 初回出力（マスキング・相対パス化済み）:`evidence/codex-initial-output.txt`
+- 初回判定:Reject。削除、入力検証、シンボリックリンク、異常終了など8件
+- 再検証プロンプト:`evidence/codex-revalidation-prompt.txt`
+- 最終出力（マスキング・相対パス化済み）:`evidence/codex-revalidation-output.txt`
+- 最終判定:approve（静的監査上）。新規・残存Must-fixなし
+- 再検証は `codex exec resume --json 019fda66-ba45-7990-881b-2d11821d77ef -` で正確なセッションを指定
 
-### 静的解析(基準4-1)
-- 手法:semgrep未導入のため、Claude通読+Codex独立監査(実行確認付き)で代替
-- 結果:F-04(CWE-20)、F-05(CWE-703)、F-06(CWE-59)、F-07(CWE-367)を検出→全件修正
-- 判定:合(修正後)
+## W5. 修正履歴
 
-### 依存検査(基準4-2/4-3/5-2/5-3)
-- 結果:外部依存パッケージなし(Python標準ライブラリのみ)。該当なしとして合
+1. 破壊的削除、未知コマンド、負数、リンク追跡、誤った終了コードを修正
+2. 予約ファイル+`os.replace` の競合を発見し、FDベース検査へ変更
+3. ハードリンク+`unlink` の競合を発見し、macOS/Linuxの原子的な非上書きrenameへ変更
+4. 対象ファイル範囲と単独利用前提を仕様化し、空検索、余分な引数、行末空白をテスト化
 
-## W4. Codex独立監査の記録(Phase 3)
+## W6. 能動的試験
 
-- 独立性の担保:Codexに渡した入力は仕様書パス(plan.md)とコードパス(memo.py)のみ。実装者側の説明・先行レビュー結果は渡していない(依頼文で「実装者からの説明は一切与えられていません」と明示)
-- 依頼文の観点:①ネガティブ要件の全件突合 ②仕様適合 ③過剰権限・不可逆操作 ④データフロー ⑤異常時挙動 ⑥セキュリティ一般/出力形式:重大度・ファイル:行・業務影響・CWE/OWASP併記
-- 初回監査の出力全文:セッション記録(保存先:`(監査実施環境のセッション記録に保存)`)
-- 初回監査結果:F-01〜F-06の6件(観点別突合表付き)。監査意見「稼働不可」
-- 特記:Codexは静的監査に加え、隔離一時ディレクトリでの実行試験(正常系・境界値・権限エラー・シンボリックリンク)を自律的に実施した
+- 逆向き検証:`evidence/vulnerable-memo.py` を `MEMO_TOOL_PATH` で隔離注入
+- 欠陥fixture:exit 1 / failures=6 / errors=2
+- 最終コード:9 tests / exit 0
+- 証拠:`evidence/reverse-test.log`
+- 本体コードやGitブランチへの欠陥注入:なし
+- 本番・外部サービス・実データへの能動的試験:なし
 
-## W5. 修正ループの記録(Phase 4)
+## W7. 封印
 
-| 周回 | 指摘 | 修正内容(コミット) | 再検証結果 |
-|---|---|---|---|
-| 1 | F-01〜F-06 | 削除→shutil.move化、通信・キー全削除、日数下限、エラー処理、配下リンク除外(`807e6fc`) | F-01/02/03解消。F-04/05/06未解消(判定根拠つき)+新規F-07(Minor) |
-| 2 | F-04〜F-07 | 日数上限36500、失敗時終了コード1、基準ディレクトリ自体のリンク拒否、O_EXCL排他+連番(`7fcb280`) | **全件解消。新規Critical/Importantなし。監査意見「稼働可」** |
+- 生成（リポジトリルートから）:`python3 scripts/audit_guard.py create-seal examples/memo-tool examples/memo-tool/audit/seal.json --exclude audit/ --exclude atlas/`
+- 照合（リポジトリルートから）:`python3 scripts/audit_guard.py verify-seal examples/memo-tool examples/memo-tool/audit/seal.json`
+- `seal.json` は全対象ファイルのSHA-256とマニフェストSHA-256を記録する
+- 静的JSONは自動更新されない。公開・納品・再利用前に照合し、非ゼロなら監査意見を失効扱いにする
+- 外部共有ゲート:`python3 scripts/audit_guard.py scan-artifacts examples/memo-tool/audit` / 2026-08-07 / exit 0 / UTF-8テキスト以外なし / 公開可
 
-各周回のCodex出力はセッション 019fd5fb-c15e-7500-8554-06d9b64c502c に全文記録。再検証時もCodexは隔離環境での実行確認(権限エラー時の終了コード、同名衝突時の既存保持、巨大整数拒否、リンク拒否)を実施した。
+## W8. 限界
 
-## W6. 能動的試験の記録(Phase 5)
-
-- 受入テスト(UAT):search(該当1行表示・rc=0)/archive 30(old.txtをarchive/へ移動、実体残存・rc=0)/異常系 archive -5(拒否・rc=1)。証跡:`evidence/uat-log.txt`
-- 逆向き検証:未実施(自動テストスイートが存在しないため対象なし。未検証面台帳#2)
-- おとり情報試験・不変条件攻撃:標準メニューでは任意項目。外部通信経路ゼロ確認・単独利用ツールであることから省略(未検証面台帳#3)
-
-## W7. 封印記録(Phase 6)
-
-`seal.json` 参照。生成コマンド:`git rev-parse HEAD` / `shasum -a 256 memo.py plan.md`
-
-## W8. 判定の例外・除外の記録
-
-- F-04の重大度をCritical→Importantに変更(Codex判定:修正1周目で負数拒否が入り、残る問題は極端な巨大整数のみとなったため)。変更は監査AI側の判定であり実装側の希望ではない
-- 本サンプル監査はスキル動作検証を兼ねており、初回コードの欠陥のうち3件(F-01/02/03)は検証のため意図的に混入されたものである。残り4件(F-04〜F-07)は意図せず混入していた実在の欠陥であり、独立監査が実装者の想定外の欠陥を検出できることの実証となった
+- Codexの判定は静的監査であり、人間の専門監査を代替しない
+- gitleaks/semgrep等の専用スキャナーは未使用
+- Linux上の実行はGitHub Actionsで検証し、macOS上はローカル受入試験で検証する

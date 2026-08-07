@@ -1,0 +1,61 @@
+Codex CLI final-message evidence (path-normalized for publication)
+Executed: 2026-08-07T04:17:24Z–04:19:51Z
+Session ID: 019fda66-ba45-7990-881b-2d11821d77ef
+Resume command: codex exec resume --json 019fda66-ba45-7990-881b-2d11821d77ef -
+Exit: 0
+
+## 総合判定
+
+approve（静的監査上）— 現在の plan.md が定義する単独利用・macOS/Linux相当の実行環境では、指定された監査観点に新規・残存のMust-fix指摘はありません。
+
+指定された plan.md と現在の memo.py だけを再読しました。コード実行・変更はしていません。
+
+## 新規・残存指摘
+
+なし。
+
+## 観点別再検証
+
+### 禁止事項 — 指摘なし
+
+- file:line: memo.py:3-8,79
+- ネットワーク、HTTP、ソケット、外部プロセス、テレメトリ処理はない。
+- remove、unlink、rmtree、上書き可能な通常renameは存在しない。
+
+### 仕様適合 — 指摘なし
+
+- file:line: plan.md:4, memo.py:36,57,125
+- UTF-8、小文字.txt、memos直下の通常ファイルという仕様と列挙条件が一致。
+- searchはCR/LFだけを除去して末尾空白を保持。archiveはFDから更新時刻を確認し、既存ファイルを上書きせず移動する。
+
+### 不可逆操作 — 指摘なし
+
+- file:line: memo.py:84-96
+- Linuxは `renameat2(..., RENAME_NOREPLACE)`、macOSは `renameatx_np(..., RENAME_EXCL)` を使用。既存先を上書きしない。
+- 原子的renameは内容を消去せず、元エントリ消失は plan.md:15 で許容されている。
+
+### 入力検証 — 指摘なし
+
+- file:line: memo.py:150-183
+- 引数数、コマンド名、空キーワード、整数形式、日数範囲を検証。
+
+### シンボリックリンク — 指摘なし
+
+- file:line: memo.py:23-33,42-54
+- ディレクトリと個別ファイルをO_NOFOLLOWで開き、fstatで種別を確認。その後は固定FDを使う。
+
+### 異常時終了コード — 指摘なし
+
+- file:line: memo.py:17,140,151-185
+- 不正入力、安全に開けないファイル、I/O失敗は終了コード1。非対応OSはENOTSUP。0件検索だけは正常終了。
+
+## 解消確認
+
+- ハードリンク＋unlink方式を原子的な非上書きrenameへ変更。
+- unlink競合と部分移動状態を解消。
+- ファイル範囲と移動の意味を仕様化。
+- CR/LF以外の行末空白を保持。
+
+運用条件: plan.md:4 の「実行中に別プロセスが変更しない」を守らない場合、identity確認とrename間の競合は再監査対象。
+
+注: Codexの最終agent_messageを公開用に相対パス化した記録。秘密値は含まれない。再検証プロンプトは codex-revalidation-prompt.txt を参照。

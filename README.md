@@ -1,39 +1,56 @@
-# ai-audit — AI相互監査+監査報告書生成スキル
+# ai-audit
 
-**AIが作ったシステムを、別系統のAIが監査し、経営層・第三者に示せる証跡付き監査報告書を生成する** Claude Code 用スキルです。
+AIが作ったシステムを、別系統のAIと機械検査で読み取り専用監査し、証拠付きの監査報告書を作るClaude Code / Codex向けスキルです。
 
-- 実装AI(Claude)×監査AI(OpenAI Codex)の**異系統AI相互監査**(同系統AIはエラーを共有しやすいという研究知見への対策)
-- 監査AIには仕様書とコードだけを渡す**独立再現モード**(実装者の説明による誘導を排除)
-- 出力は4点セット:**監査報告書**(9章・監査意見つき)/**監査調書**(第三者が再実行できる全証跡)/**未検証面台帳**(「指摘なし」と「安全」を区別)/**封印記録**(コード変更で監査意見が自動失効)
-- ISO/IEC 25010・OWASP ASVS v5・CWE・IPA非機能要求グレード・経産省システム監査基準などの公知の標準を**参照**して設計(「準拠」と言い切らない誇張禁止ルール込み)
+> Status: v1.1 Preview。監査結果は限定的保証であり、法令上の保証、認証、人間の専門家による監査の代替ではありません。
 
-## 📖 詳細マニュアル
+## v1.1で守ること
 
-**[docs/index.html](docs/index.html)** をブラウザで開いてください(単一HTML・全13章)。導入手順・監査基準10領域の解説・報告書の読み方・限界と免責まで全て記載しています。
+- 既定は `audit-only`。明示承認なしにコード、仕様、設定、Git状態を変更しません。
+- 本番環境では欠陥注入、架空データ投入、外部副作用を伴う能動的試験を実行しません。
+- 秘密値の生出力を保存しません。高エントロピートークンだけ照合用SHA-256短縮指紋を許容し、パスワード等は指紋も公開しません。
+- Codex再検証は正確なセッションIDを指定します。
+- 封印は生成物を除く監査範囲内の全追跡ファイルを対象にし、未追跡・変更・削除を検出します。
 
-## クイックスタート
+## インストール
 
 ```bash
-# 1. スキルを配置
-cp -R skills/ai-audit   ~/.claude/skills/
-cp -R skills/code-atlas ~/.claude/skills/   # 付属: 非エンジニア向けシステム地図生成
+git clone https://github.com/goonobu-dot/ai-audit-skill.git
+cd ai-audit-skill
 
-# 2. 検査ツール(任意・推奨)
-brew install gitleaks semgrep jscpd
+# Claude Code
+cp -R skills/ai-audit ~/.claude/skills/
+cp -R skills/code-atlas ~/.claude/skills/
 
-# 3. 対象プロジェクトで Claude Code を開き
-/ai-audit
+# Codex（個人スキル）
+cp -R skills/ai-audit ~/.agents/skills/
+cp -R skills/code-atlas ~/.agents/skills/
 ```
 
-前提:Claude Code、OpenAI Codex CLI(`codex exec` が動くこと)、対象プロジェクトのgit管理、仕様書(なければスキルが対話で作成)。
+前提はOpenAI Codex CLI、Git、Python 3です。追加スキャナーは任意で、未導入の検査は代替または未検証として明記します。
 
-## 実例
+## 検証
 
-[`examples/memo-tool/`](examples/memo-tool/) は、わざと欠陥を仕込んだ小さなツールに実際に監査をかけた完全な実例です。仕込んだ3件に加え、**実装者が意図していなかった実在の欠陥4件**を独立監査AIが検出し、修正ループ2周で監査意見「稼働可」に至るまでの報告書・調書・台帳・システム地図(atlas)がすべて入っています。
+```bash
+python3 -m unittest discover -s tests -v
+python3 -m unittest discover -s examples/memo-tool/tests -v
+python3 scripts/audit_guard.py validate-bundle examples/memo-tool
+python3 scripts/audit_guard.py verify-seal examples/memo-tool examples/memo-tool/audit/seal.json
+```
 
-## これは何を保証するものではないか(必読)
+静的な `seal.json` やHTMLが自動で失効表示へ変わるわけではありません。再利用・公開・納品前に検証コマンドを実行し、非ゼロ終了なら監査意見を失効扱いにします。
 
-本スキルはAIによる監査であり、未知の攻撃・監査AI自身の盲点は検出できません。生成される報告書は「実施した検査の範囲での限定的保証」であり、法令上の保証や人間の専門家による監査を代替しません。詳細はマニュアル第12章「限界と免責」を必ずお読みください。**限界を隠さないことが、このスキルの信頼の根拠です。**
+## 実例とマニュアル
+
+- [再現可能なmemo-tool監査例](examples/memo-tool/)
+- [詳細マニュアル](docs/index.html)
+- [監査基準](skills/ai-audit/references/audit-standards.md)
+
+実例には最終コード、受入テスト、隔離fixtureでの逆向き検証、マスキング済みCodexプロンプト/出力、封印が含まれます。
+
+## Security
+
+監査成果物を公開する前に必ず秘密情報と個人情報を再検査してください。脆弱性の報告方法は [SECURITY.md](SECURITY.md) を参照してください。
 
 ## License
 

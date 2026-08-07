@@ -1,18 +1,17 @@
-=== UAT実行記録 2026-08-06 16:42 ===
---- search 会議 ---
-2026-08-01.txt:1: 会議メモ: 会議の議事メモ確認
-該当 1 行
-rc=0
---- archive 30 ---
-移動しました: old.txt -> archive/old.txt
-移動 1 件
-rc=0
---- 検収基準確認: archive/に実体、memos/から消えている ---
-archive/:
-old.txt
+UAT / acceptance test record: 2026-08-07
+Command (from examples/memo-tool):
+python3 -m unittest discover -s tests -v
 
-memos/:
-2026-08-01.txt
---- 異常系: 負の日数 ---
-日数は1〜36500の範囲で指定してください(事故防止)
-rc=1
+test_archive_moves_instead_of_deleting ... ok
+test_archive_preserves_existing_destination ... ok
+test_archive_rejects_negative_days ... ok
+test_extra_arguments_are_rejected ... ok
+test_search_preserves_trailing_spaces ... ok
+test_search_rejects_empty_keyword ... ok
+test_search_returns_matching_lines ... ok
+test_symlinked_memo_directory_is_rejected ... ok
+test_symlinked_memo_file_is_reported_as_failure ... ok
+
+Ran 9 tests
+OK
+exit=0

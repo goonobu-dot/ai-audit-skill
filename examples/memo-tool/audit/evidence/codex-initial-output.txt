@@ -1,0 +1,52 @@
+Codex CLI final-message evidence (path-normalized for publication)
+Executed: 2026-08-07T04:06:32Z
+Session ID: 019fda66-ba45-7990-881b-2d11821d77ef
+Mode: --json, --sandbox read-only
+Exit: 0
+
+## 総合判定
+
+Reject / needs-changes（重大）— archive が仕様と正反対の削除処理を行い、入力ミスでもメモを不可逆に失う可能性があります。
+
+監査は plan.md と audit/evidence/vulnerable-memo.py の静的確認に限定し、コード実行・変更はしていません。
+
+## 指摘事項
+
+1. Critical — archive が移動ではなくファイルを削除する
+   - file:line: audit/evidence/vulnerable-memo.py:20,25
+   - 証拠: `os.remove(path)` を実行し、archive作成・移動・コピーがない。
+   - 業務影響: メモを復元不能に失い、禁止事項と検収基準へ直接違反。
+   - 関連: CWE-73
+2. High — 未知のコマンドをarchiveとして実行し成功終了する
+   - file:line: audit/evidence/vulnerable-memo.py:29,31
+   - 証拠: search以外をすべてelseでarchiveへ送る。
+   - 業務影響: タイプミスでも破壊的処理を実行し、成功と誤認する。
+   - CWE-20, CWE-670
+3. High — 負の日数を許容し、ほぼ全メモを対象にする
+   - file:line: audit/evidence/vulnerable-memo.py:21,32
+   - 証拠: int変換のみで範囲検証がない。
+   - CWE-20
+4. High — search がシンボリックリンクを追跡する
+   - file:line: audit/evidence/vulnerable-memo.py:11,13,14
+   - 業務影響: memos外のファイルを読み取る可能性。
+   - CWE-59
+5. High — archive のリンク処理と確認・削除が競合可能
+   - file:line: audit/evidence/vulnerable-memo.py:23-25
+   - CWE-59, CWE-367
+6. Medium — 引数不足・ファイル異常の扱いが未設計
+   - file:line: audit/evidence/vulnerable-memo.py:11,24,29
+   - 業務影響: 部分削除後に未処理例外で終了する可能性。
+   - CWE-703
+7. Medium — 空の検索語が全行表示になる
+   - file:line: audit/evidence/vulnerable-memo.py:16,30
+   - CWE-20
+8. Low — 対象を小文字.txtに限定しているが仕様に記載がない
+   - file:line: audit/evidence/vulnerable-memo.py:13,24
+   - 機能仕様の不一致。
+
+## 指摘なし
+
+- 外部通信、テレメトリ、コマンドインジェクションは検出されなかった。
+- 通常のUTF-8ファイルに対するsearchの部分一致は実装されている。
+
+注: Codexの最終agent_messageを公開用に相対パス化した記録。秘密値は含まれない。プロンプトは codex-initial-prompt.txt を参照。

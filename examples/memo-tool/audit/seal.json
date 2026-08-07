@@ -1,9 +1,17 @@
 {
-  "sealed_at": "2026-08-06",
-  "commit": "7fcb280600111460e2f5680e47e3c0ac1830981d",
+  "schema_version": 2,
+  "sealed_at": "2026-08-07T04:23:19+00:00",
+  "source_commit": "22af8fefedb5672011c8b15772e26700199f57e6",
+  "source_manifest_sha256": "sha256:60dc994d5ae01da0dd52df6dbe478efbf7d2a339ca3bf703f936992490e0d1b6",
+  "scope": ".",
+  "exclusions": [
+    "audit/",
+    "atlas/"
+  ],
   "artifacts": {
-    "memo.py": "sha256:78dcfbc9cc039e8360d81bb549683663d6b95ace00ef086a7f561a92e3b1f6c4",
-    "plan.md": "sha256:a03c526dc4bb5eb0eebb925028ac4ad7ec0c9f8c3cd2e14ccbcc9fe4e0e34908"
+    "memo.py": "sha256:032bca39d55ef01cf100f58e6ec515cafd0663379695711125df093d4c941e68",
+    "plan.md": "sha256:966acb8990c54e1fcca3d70c19512e0faae2c2227862e0274d29d98a561b6fcd",
+    "tests/test_memo_tool.py": "sha256:62b63942dd7af219477fe479e3a8d1c0ddaef87f3adb0d000e603fe7601b7222"
   },
-  "note": "上記のいずれかが変更された時点で監査報告書 MEMO-20260806-001 の監査意見は失効する"
+  "invalidation": "Run scripts/audit_guard.py verify-seal; any reported difference invalidates the opinion."
 }

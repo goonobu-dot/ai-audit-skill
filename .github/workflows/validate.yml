@@ -1,0 +1,27 @@
+name: Validate audit skill
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: validate-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Run guard tests
+        run: python3 -m unittest discover -s tests -v
+      - name: Run sample acceptance tests
+        run: python3 -m unittest discover -s examples/memo-tool/tests -v
+      - name: Validate reproducible audit bundle
+        run: python3 scripts/audit_guard.py validate-bundle examples/memo-tool
