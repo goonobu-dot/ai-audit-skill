@@ -1,0 +1,17 @@
+Reverse test executed: 2026-08-07
+
+Command (isolated intentional-defect fixture):
+MEMO_TOOL_PATH="$PWD/audit/evidence/vulnerable-memo.py" python3 -m unittest discover -s tests -v
+
+Result: exit 1, 9 tests executed, FAILED (failures=6, errors=2)
+- archive-moves test detected destructive deletion (archive/old.txt was missing)
+- collision test detected failure to preserve/move the new memo
+- negative-days test detected acceptance of an unsafe value
+- symlink-directory test detected failure to reject a symlink
+
+Command (sealed application):
+python3 -m unittest discover -s tests -v
+
+Result: exit 0, 9 tests passed.
+
+The intentional defect exists only under audit/evidence/, which is excluded from the application seal. The application source was not modified for this reverse test.

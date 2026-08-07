@@ -1,6 +1,12 @@
-# 監査基準書 v1.0 — ai-audit スキル適用基準
+# 監査基準書 v1.1 — ai-audit スキル適用基準
 
-出所:AI開発監査ニーズ調査(~/Projects/ai-audit-research/、2026-08-06納品)の観点リストv0.2を基準化したもの。
+出所:以下の公知標準を参照して構成した独自の監査基準。認証・準拠・法的保証を意味しない。
+
+- [OWASP Application Security Verification Standard](https://owasp.org/www-project-application-security-verification-standard/)
+- [デジタル庁 標準ガイドライン群](https://www.digital.go.jp/resources/standard_guidelines)
+- [NIST AI Risk Management Framework](https://www.nist.gov/itl/ai-risk-management-framework)
+- [経済産業省 システム監査基準](https://www.meti.go.jp/policy/netsecurity/sys-kansa/)
+- [経済産業省 情報システム・モデル取引・契約書](https://www.meti.go.jp/policy/it_policy/softseibi/)
 凡例 — メニュー列:◎=必須 ○=推奨(省略時は未検証面台帳へ) −=対象外。重大度は不合格時の初期値(業務影響で上下してよい。理由を調書に記録)。
 
 ## 領域0:リスク格付け(監査メニュー決定)
@@ -44,7 +50,7 @@
 | 3-1 | 検収基準の事前確定 | 仕様書に合否基準・主要テストケースが定義済み | Important | ○ | ◎ | ◎ |
 | 3-2 | 要件トレーサビリティ | 仕様の各要求⇔コード・テストの対応表が作成でき、対応のない要求(実装漏れ)・仕様に根拠のない機能(混入)がゼロ | Critical | ○ | ◎ | ◎ |
 | 3-3 | 受入テスト(UAT) | 主要業務シナリオが実環境相当で動作し、証跡(スクショ/ログ)が保存されている | Critical | ◎ | ◎ | ◎ |
-| 3-4 | テストの実効性(逆向き検証) | 意図的に混入した欠陥をテスト/検査が検出する(検証後の欠陥除去をdiffで確認) | Important | − | ◎ | ◎ |
+| 3-4 | テストの実効性(逆向き検証) | 本体を変更しない隔離fixture/一時worktreeの欠陥をテストが検出し、元の対象ハッシュが不変 | Important | − | ◎ | ◎ |
 
 ## 領域4:セキュリティ品質(ツール層の中心)
 
@@ -111,7 +117,7 @@
 |---|---|
 | ISO/IEC 25010(JIS X 25010) | 品質8特性→領域9の分類の裏付け |
 | ISO/IEC/IEEE 29119・ISTQB技法 | テスト設計・文書化の型 |
-| OWASP ASVS v5.0(2025年5月発行、17章・約350要件) | 検証深度レベルの考え方を監査メニューに借用:L1(基本的な第一防御層)≒簡易、L2(ほとんどのアプリの推奨)≒標準、L3(最高保証)≒厳格。※これは設計思想の借用であり、ASVS要件との技術的な同一視ではない。なおASVS一次文書自体が「OWASPは何も認証しない」と明記しており、「参照」表記はこの標準の推奨態度と一致する |
+| OWASP ASVS v5.0 | 検証深度レベルの考え方を監査メニューに借用:L1≒簡易、L2≒標準、L3≒厳格。これは設計思想の借用であり、ASVS要件との技術的な同一視ではない。OWASPによる認証を意味しない |
 | OWASP Top 10 / CWE Top 25 | 領域4の検査対象の定義 |
 | OWASP LLM Top 10 | 領域2の概念(Excessive Agency等)。※LLMアプリ向け基準の概念援用と注記 |
 | IPA 非機能要求グレード | 領域9の6分類 |

@@ -59,7 +59,7 @@
     <span class="badge">対象:Claude Code + OpenAI Codex CLI</span>
     <span class="badge">成果物:監査報告書/監査調書/未検証面台帳/封印記録</span>
     <span class="badge">付属:code-atlas(非エンジニア向けシステム地図生成)</span>
-    <span class="badge">Version 1.0(2026-08)</span>
+    <span class="badge">Version 1.1 Preview(2026-08)</span>
   </div>
 </header>
 
@@ -95,14 +95,14 @@
 
 <section id="intro">
   <h2>1. このスキルは何か</h2>
-  <p><strong>ai-audit</strong> は、AIコーディングエージェント(Claude Code等)で開発したシステムを、<strong>開発したAIとは別系統のAI(OpenAI Codex)が独立に監査</strong>し、その過程と結果を<strong>正式な監査報告書</strong>として出力する、Claude Code 用のスキルです。</p>
+  <p><strong>ai-audit</strong> は、AIコーディングエージェントで開発したシステムを、<strong>開発したAIとは別系統のAI(OpenAI Codex)が独立に監査</strong>し、その過程と結果を証拠付き監査報告書として出力する、Claude Code / Codex 用のPreviewスキルです。既定は読み取り専用の <code>audit-only</code> です。</p>
   <p>生成されるのは次の4点です。</p>
   <div class="tablewrap"><table>
     <tr><th>成果物</th><th>役割</th><th>読者</th></tr>
     <tr><td>監査報告書(audit-report.md)</td><td>監査意見(稼働可/条件付き/不可)・重大指摘・残余リスクを9章構成で示す正式文書</td><td>経営層・決裁者・発注元</td></tr>
-    <tr><td>監査調書(audit-workpaper.md)</td><td>全検査のコマンド・ツールバージョン・AIとのやり取り全文。第三者が同じ監査を再実行できる証跡</td><td>技術者・外部専門機関</td></tr>
+    <tr><td>監査調書(audit-workpaper.md)</td><td>全検査のコマンド・ツールバージョン・マスキング済みAI出力。第三者が同じ監査を再実行できる証跡</td><td>技術者・外部専門機関</td></tr>
     <tr><td>未検証面台帳(unverified-ledger.md)</td><td>「検証しなかった領域」の一覧。「指摘なし」と「安全」を区別する</td><td>全読者・外部診断の発注仕様</td></tr>
-    <tr><td>封印記録(seal.json)</td><td>監査対象のコミットID・ファイルのハッシュ値。「監査したもの」と「動いているもの」の同一性を保証し、変更されたら監査意見を失効させる</td><td>機械照合用</td></tr>
+    <tr><td>封印記録(seal.json)</td><td>生成物を除く監査範囲内の全追跡ファイルのハッシュ値。検証コマンドで変更・削除・追加を検出する</td><td>機械照合用</td></tr>
   </table></div>
   <div class="box important"><b class="tag">こんな人のためのスキルです</b>
   ・AIでアプリ・業務システムを作ったが、「本当に大丈夫なのか」を口頭ではなく文書で示したい開発者(個人・企業を問わず)<br>
@@ -114,20 +114,20 @@
 
 <section id="why">
   <h2>2. なぜ必要か(背景データ)</h2>
-  <p>本スキルの監査基準は、思いつきではなく「世の中の企業・開発者・発注者がAI生成コードの何を不安に思っているか」の調査(2026年8月実施。海外・国内の一次資料ベース)から設計されています。要点は5つです。</p>
+  <p>本スキルの監査基準は、公開された一次資料と公知標準を参照して設計しています。特定の数値をAI生成コード全般へ一般化せず、各研究の対象と条件を区別します。</p>
   <ol>
-    <li><strong>「信頼していないのに、検証していない」</strong> — 開発者の96%はAI生成コードの正しさを完全には信頼していないが、コミット前に常にチェックしているのは48%にとどまる(Sonar調査、2026年1月)。この「検証ギャップ」を仕組みで埋める必要があります。</li>
-    <li><strong>AI生成コードの脆弱性混入は高水準</strong> — 複数の独立した研究・実測(Stanford、NYU、Veracode)が、概ね40%前後(研究により9〜52%の幅)という高い混入率を報告しています。※条件の異なる調査の傾向値であり、単一の確定値ではありません。</li>
-    <li><strong>「勝手な動作」は現実に起きている</strong> — AIエージェントが指示に反して本番データベースを削除した実事件(2025年7月)があり、OWASPも「Excessive Agency(過剰な自律性)」というリスク分類を設けています。</li>
-    <li><strong>既存の検査ツールでは足りない</strong> — 静的解析・依存性検査などの既存ツールは「既知パターンとの照合」を原理とする設計であり、「仕様通りに動くか」「頼んでいないこと・禁止したことが混入していないか」の判定は設計上の対象外です。デジタル庁のガイドラインも「ツールによる自動診断だけでは不十分で、専門家による手動診断との併用が不可欠」と明記しています(政府情報システムにおける脆弱性診断導入ガイドライン)。</li>
-    <li><strong>「禁止事項が入っていないことの検証」は方法論の空白地帯</strong> — 従来の受託開発の検収は「頼んだことが動くか」中心で、「頼んでいないことが入っていないか」(ネガティブ要件)を体系的に検証する確立した方法論は見当たりません。本スキルの独自価値はここにあります。</li>
+    <li><strong>生成コードは人間の検証を省略できない</strong> — <a href="https://cyber.nyu.edu/2021/10/15/ccs-researchers-find-github-copilot-generates-vulnerable-code-40-of-the-time/">NYUの2021年研究</a>は、当時のGitHub Copilotを特定のCWEシナリオで評価した結果を報告しています。「40%」はこの実験条件の値であり、すべてのAIコードの一般値ではありません。</li>
+    <li><strong>仕様適合はSASTだけでは判定できない</strong> — 静的解析と依存検査に加え、仕様・禁止事項とコードの突合が必要です。</li>
+    <li><strong>過剰な自律性を分離する</strong> — 修正、欠陥注入、外部副作用を伴う試験は監査とは別の承認対象にします。</li>
+    <li><strong>未検証を可視化する</strong> — 「検出なし」を「安全」と言い換えず、実施できなかった検査を台帳へ残します。</li>
+    <li><strong>公開証拠を保護する</strong> — 秘密値を保存せず、マスキング済み出力と再実行手順を残します。</li>
   </ol>
 </section>
 
 <section id="concept">
   <h2>3. 仕組みの全体像</h2>
   <h3>3-1. 異系統AI相互監査という考え方</h3>
-  <p>実装するAI(Claude/Anthropic)と監査するAI(Codex/OpenAI)を<strong>開発元の異なる別系統のAI</strong>にします。根拠は2つの研究知見です:①同一系統のAI(同じ会社・同じ学習系統のモデル)同士はエラーが相関する=同じ間違いを共有しやすい(モノカルチャーリスク)、②AIは自分自身の出力を高く評価する自己選好バイアスを持つ。異系統の組み合わせは、この両方への理論的な対策になります。</p>
+  <p>実装するAIと監査するAIを<strong>開発元の異なる別系統</strong>にし、同じ会話の説明に引きずられない独立した観点を追加します。</p>
   <div class="box warn"><b class="tag">正直な留保(重要)</b>異系統AI監査の利点は研究に基づく<strong>理論的な期待</strong>であり、実証された保証ではありません。本スキルは報告書にもこの留保を必ず記載します。「AIがAIを監査するから完璧」という主張は、本スキルの思想と正反対です。</div>
   <h3>3-2. 独立再現モード</h3>
   <p>監査AI(Codex)には<strong>仕様書とコードだけ</strong>を渡します。実装AIによる「このコードはこういう意図です」という説明は一切渡しません。説明を渡すと監査AIがそれに誘導されるためです。これは会計監査・内部監査の「3線防御モデル」における第3線(独立監査)の独立性と同じ考え方です。</p>
@@ -160,13 +160,17 @@
   <ul>
     <li><strong>Claude Code</strong>(Anthropic)が動作していること</li>
     <li><strong>OpenAI Codex CLI</strong> が導入済みで <code>codex exec</code> が使えること(ChatGPTの利用枠を消費します)。Codexがない場合、スキルは縮退モード(Claude内部の別視点レビュー)を提案しますが、<strong>異系統AI監査の独立性は失われる</strong>ため報告書にその旨が記録されます</li>
-    <li>対象プロジェクトが <strong>git 管理</strong>されていること(封印にコミットIDを使うため。なければスキルが <code>git init</code> を提案します)</li>
+    <li>対象プロジェクトが <strong>git 管理</strong>されていること。未管理の場合、スキルは勝手に初期化せず、封印不能として記録します</li>
   </ul>
   <h3>4-2. スキルの配置</h3>
 <pre><code># このリポジトリを取得して、skills/ 配下を Claude Code のスキルフォルダへコピー
-git clone https://github.com/&lt;this-repo&gt;.git
+git clone https://github.com/goonobu-dot/ai-audit-skill.git
 cp -R ai-audit-skill/skills/ai-audit   ~/.claude/skills/
-cp -R ai-audit-skill/skills/code-atlas ~/.claude/skills/   # 付属(任意)</code></pre>
+cp -R ai-audit-skill/skills/code-atlas ~/.claude/skills/   # 付属(任意)
+
+# Codex の個人スキルとして使う場合
+cp -R ai-audit-skill/skills/ai-audit   ~/.agents/skills/
+cp -R ai-audit-skill/skills/code-atlas ~/.agents/skills/</code></pre>
   <h3>4-3. 検査ツール(任意・推奨)</h3>
   <p>以下を導入するとツール層検査の精度が上がります。<strong>未導入でも動作します</strong>(代替手法で検査し、その限界を未検証面台帳に自動記録します)。</p>
 <pre><code>brew install gitleaks   # シークレット(APIキー等)検出
@@ -185,7 +189,7 @@ brew install jscpd      # 複製コード検出</code></pre>
   <h3>5-2. 実行</h3>
 <pre><code># 対象プロジェクトのフォルダで Claude Code を開き、
 /ai-audit</code></pre>
-  <p>あとはスキルが第6章のパイプラインを進めます。利用者に質問が来るのは主に2箇所:リスク格付けの判定材料が仕様書から読み取れないとき(最大3問)と、重大な判断の分岐時です。</p>
+  <p>既定では読み取り専用監査を進めます。修正や能動的試験は、初回結果を見た利用者が対象と副作用を明示承認した場合だけ実行します。</p>
   <h3>5-3. 実行例(サンプルプロジェクト)</h3>
   <p>本リポジトリの <code>examples/memo-tool/</code> は、わざと欠陥を仕込んだ小さなツールに実際に監査をかけた完全な実例です。初回監査で<strong>仕込んだ3件(APIキー直書き・禁止された外部送信・削除禁止違反)に加え、実装者が意図していなかった実在の欠陥4件</strong>(入力ミスで全ファイル消失・失敗を成功と報告・領域外アクセス・上書き競合)をCodexが検出し、修正ループ2周で監査意見「稼働可」に至るまでの全記録(報告書・調書・台帳)が入っています。</p>
 </section>
@@ -195,10 +199,10 @@ brew install jscpd      # 複製コード検出</code></pre>
   <div class="phase"><span class="flownum">0</span><div><strong>前提確認</strong> — 仕様書と禁止事項リストの存在確認、gitの状態確認(作業ツリーがクリーンであること)、対象コミットIDの記録、Codex CLIの動作確認。</div></div>
   <div class="phase"><span class="flownum">1</span><div><strong>リスク格付け</strong> — 影響度・データ機密度・自律性の3軸でシステムを格付けし、監査メニュー(簡易/標準/厳格)を決定。判定理由は監査調書に記録(詳細は第7章 領域0)。</div></div>
   <div class="phase"><span class="flownum">2</span><div><strong>ツール層検査</strong> — 機械で白黒つく項目:シークレット検出、通信経路の全数検索、静的解析、依存パッケージの実在確認(AIが実在しないパッケージ名を挙げる「slopsquatting」対策)、既知脆弱性(CVE)、ライセンス。全コマンドとバージョンを調書に記録。指摘には可能な限りCWE番号(脆弱性の世界共通の分類番号)を併記。</div></div>
-  <div class="phase"><span class="flownum">3</span><div><strong>Codex独立監査</strong> — 監査AIに仕様書とコードのパスのみを渡し(独立再現モード)、ネガティブ要件の全件突合・仕様適合・過剰権限・データフロー・異常時挙動を監査させる。出力は重大度(Critical/Important/Minor)付き。生出力全文を調書に記録。</div></div>
-  <div class="phase"><span class="flownum">4</span><div><strong>修正ループ</strong> — Critical/Important指摘を実装AIが修正→Codexが再検証。ゼロになるまで反復(上限5周。残った指摘は理由付きで報告書に記載)。全履歴を調書に記録。</div></div>
-  <div class="phase"><span class="flownum">5</span><div><strong>能動的試験</strong>(メニューに応じて)— <strong>受入テスト(UAT)</strong>:業務シナリオの実動作確認+証跡保存。<strong>逆向き検証</strong>:わざと欠陥を混入してテスト・検査が検出できるか確認(「テストが通っている」と「テストが機能している」は別物)。<strong>おとり情報試験</strong>:架空の個人情報を投入し、ログ・通信のどこにも現れないことを確認。<strong>不変条件攻撃</strong>:「何が起きても守るべき条件」を重複操作・同時実行・通信断などで攻撃して破れないか確認。</div></div>
-  <div class="phase"><span class="flownum">6</span><div><strong>成果物生成と封印</strong> — 報告書・調書・台帳を生成し、対象コミットIDと主要ファイルのSHA-256ハッシュを seal.json に記録。<strong>封印対象が1つでも変更されたら監査意見は自動失効</strong>(=再監査が必要)というルールを報告書に明記。</div></div>
+  <div class="phase"><span class="flownum">3</span><div><strong>Codex独立監査</strong> — 監査AIに仕様書とコードのパスのみを渡し、重大度付きで判定。秘密値を除去した出力と正確なセッションIDを調書に記録。</div></div>
+  <div class="phase"><span class="flownum">4</span><div><strong>修正ループ</strong> — 初回報告後に明示承認がある場合だけ修正し、同じセッションIDで全対象を再検証します。</div></div>
+  <div class="phase"><span class="flownum">5</span><div><strong>能動的試験</strong> — 別承認を得たうえで隔離環境だけで実施します。<strong>本番環境では実行しません</strong>。逆向き検証は本体を変更しないfixtureまたは一時worktreeで行います。</div></div>
+  <div class="phase"><span class="flownum">6</span><div><strong>成果物生成と封印</strong> — 生成物を除く監査範囲内の全追跡ファイルをSHA-256で封印。静的ファイルは自動更新されないため、公開・納品前に検証コマンドを実行し、差分があれば失効扱いにします。</div></div>
 </section>
 
 <section id="standards">
@@ -318,7 +322,7 @@ brew install jscpd      # 複製コード検出</code></pre>
   <ul>
     <li>左に機能一覧、中央にデータフロー図(配管図イメージ)、各処理ステップに<strong>根拠チップ(ファイル名:行番号)</strong>——クリックするとコード抜粋と平易な解説が開きます</li>
     <li><strong>すべての説明に根拠リンクが付く</strong>ため、「AIの説明を信じる」のではなく「説明とコードの対応を検証できる」文書になります</li>
-    <li>ai-audit の監査成果物があるプロジェクトでは、監査バッジ(監査意見・報告書番号)が表示されます</li>
+    <li>ai-audit の監査成果物がある場合、生成時の封印検証結果と監査バッジを表示します。後日の変更を自動検知しないため、再表示前にアトラスを再生成します</li>
     <li>外部依存ゼロの単一HTMLなので、社内ネットワーク・オフラインでもブラウザで開けます</li>
   </ul>
   <p>実例は <code>examples/memo-tool/atlas/index.html</code> をブラウザで開いてください。</p>
@@ -357,7 +361,7 @@ brew install jscpd      # 複製コード検出</code></pre>
 </div>
 
 <footer>
-  ai-audit マニュアル v1.0(2026-08)/ 本マニュアルと同スキルはAI(Claude)との協働で開発され、監査プロトコルの設計にはOpenAI Codexのセカンドオピニオンとクロスチェックが組み込まれています。/ 背景調査の出典一覧はリポジトリの調査報告書を参照 / License: MIT
+  ai-audit マニュアル v1.1 Preview(2026-08)/ 公知標準を参照した独自手順であり、認証・準拠・安全保証を意味しません。/ License: MIT
 </footer>
 </body>
 </html>
