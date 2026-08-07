@@ -40,8 +40,10 @@ class AuditGuardTests(unittest.TestCase):
             "recovery_code=RecoverMe1234567890ABC\n"
             "Authorization: Bearer vendorToken_0123456789abcdef\n"
             "Authorization: Bearer AAAAAAAAAAAAAAAA\n"
+            "Authorization: Bearer abc123\n"
             "password=abc\n"
             'password="correct horse battery staple"\n'
+            '{"password": "correct \\"horse\\" battery staple"}\n'
             'private_key="-----BEGIN PRIVATE KEY----- secret material -----END PRIVATE KEY-----"\n'
             'access_token: "opaqueVendorToken0123456789abcdef"\n'
             '{"access_token": "a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1"}\n'
@@ -56,6 +58,7 @@ class AuditGuardTests(unittest.TestCase):
         self.assertNotIn("CorrectHorseBatteryStaple", redacted)
         self.assertNotIn("vendorToken_0123456789abcdef", redacted)
         self.assertNotIn("Bearer AAAAAAAAAAAAAAAA", redacted)
+        self.assertNotIn("abc123", redacted)
         self.assertNotIn("horse battery staple", redacted)
         self.assertNotIn("secret material", redacted)
         self.assertNotIn("opaqueVendorToken0123456789abcdef", redacted)
@@ -66,6 +69,7 @@ class AuditGuardTests(unittest.TestCase):
         self.assertIn("pin=[REDACTED]", redacted)
         self.assertIn("recovery_code=[REDACTED]", redacted)
         self.assertGreaterEqual(redacted.count("[REDACTED:sha256:"), 2)
+        self.assertEqual(redacted, redact_text(redacted))
 
     def test_redact_cli_can_delete_raw_temporary_input_after_safe_output(self):
         from scripts.audit_guard import main
@@ -207,7 +211,7 @@ class AuditGuardTests(unittest.TestCase):
         from scripts.audit_guard import redact_text, scan_artifacts
 
         evidence = self.repo / "audit" / "spaced.json"
-        raw = '{"password": "correct horse battery staple"}\n'
+        raw = '{"password": "correct \\"horse\\" battery staple"}\n'
         evidence.write_text(raw, encoding="utf-8")
 
         self.assertTrue(scan_artifacts(self.repo / "audit"))

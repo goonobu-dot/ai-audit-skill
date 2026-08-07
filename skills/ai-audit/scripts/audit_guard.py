@@ -25,11 +25,11 @@ TOKEN_PATTERNS = (
     re.compile(r"\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\b"),
     re.compile(r"\b(?=[A-Za-z0-9_-]{32,}\b)(?=[A-Za-z0-9_-]*[a-z])(?=[A-Za-z0-9_-]*[A-Z])(?=[A-Za-z0-9_-]*[0-9])[A-Za-z0-9_-]{32,}\b"),
 )
-BEARER_PATTERN = re.compile(r"(?i)\bBearer\s+[A-Za-z0-9._~+/=-]{16,}")
+BEARER_PATTERN = re.compile(r"(?i)\bBearer\s+[A-Za-z0-9._~+/=-]+")
 ASSIGNMENT_PATTERN = re.compile(
     r"(?i)([\"']?\b(?:api[_-]?key|access[_-]?token|auth(?:orization)?|client[_-]?secret|"
     r"credential|jwt|password|passwd|pin|private[_-]?key|recovery[_-]?code|secret|token)\b[\"']?\s*[:=]\s*)"
-    r"(?:(['\"])(.*?)\2|([^\s,}\]]+))"
+    r'(?:"((?:\\.|[^"\\])*)"|\'((?:\\.|[^\'\\])*)\'|([^\s,}\]]+))'
 )
 PRIVATE_KEY_PATTERN = re.compile(
     r"-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----.*?-----END [A-Z0-9 ]*PRIVATE KEY-----",
@@ -55,9 +55,13 @@ def redact_text(text: str) -> str:
     )
 
     def redact_assignment(match: re.Match[str]) -> str:
-        quote = match.group(2) or ""
-        value = match.group(3) if match.group(2) else match.group(4)
-        if value.startswith("[REDACTED:"):
+        if match.group(2) is not None:
+            quote, value = '"', match.group(2)
+        elif match.group(3) is not None:
+            quote, value = "'", match.group(3)
+        else:
+            quote, value = "", match.group(4)
+        if value.startswith("[REDACTED"):
             return match.group(0)
         return f"{match.group(1)}{quote}{_replacement(value, include_fingerprint=False)}{quote}"
 
