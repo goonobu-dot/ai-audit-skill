@@ -54,12 +54,12 @@
 
 <header class="top">
   <h1>ai-audit マニュアル</h1>
-  <div class="sub">AI相互監査+監査報告書生成スキル — AIが作ったシステムを、別系統のAIが監査し、経営層・第三者に示せる証跡付き報告書を生成する</div>
+  <div class="sub">要求事項・証拠・判定を追跡する技術監査スキル — AIが作ったシステムを、別系統AIレビューと機械検査で評価し、企業へ説明できる成果物を生成する</div>
   <div class="badges">
     <span class="badge">対象:Claude Code + OpenAI Codex CLI</span>
-    <span class="badge">成果物:監査報告書/監査調書/未検証面台帳/封印記録</span>
+    <span class="badge">成果物:品質プロファイル/要求マトリクス/報告書/調書/未検証台帳/封印</span>
     <span class="badge">付属:code-atlas(非エンジニア向けシステム地図生成)</span>
-    <span class="badge">Version 1.1 Preview(2026-08)</span>
+    <span class="badge">Version 1.2 Preview(2026-08)</span>
   </div>
 </header>
 
@@ -95,18 +95,20 @@
 
 <section id="intro">
   <h2>1. このスキルは何か</h2>
-  <p><strong>ai-audit</strong> は、AIコーディングエージェントで開発したシステムを、<strong>開発したAIとは別系統のAI(OpenAI Codex)が独立に監査</strong>し、その過程と結果を証拠付き監査報告書として出力する、Claude Code / Codex 用のPreviewスキルです。既定は読み取り専用の <code>audit-only</code> です。</p>
-  <p>生成されるのは次の4点です。</p>
+  <p><strong>ai-audit</strong> は、AIコーディングエージェントで開発したシステムを、<strong>開発時の説明から切り離した別系統AIレビューと機械検査</strong>で評価し、その過程と結果を要求事項単位の証拠付き技術監査報告書として出力する、Claude Code / Codex 用のPreviewスキルです。既定は読み取り専用の <code>audit-only</code> です。別のAI提供者を使うことは組織的な第三者性を意味しません。</p>
+  <p>生成される標準成果物は次の6点です。</p>
   <div class="tablewrap"><table>
     <tr><th>成果物</th><th>役割</th><th>読者</th></tr>
-    <tr><td>監査報告書(audit-report.md)</td><td>監査意見(稼働可/条件付き/不可)・重大指摘・残余リスクを9章構成で示す正式文書</td><td>経営層・決裁者・発注元</td></tr>
+    <tr><td>品質プロファイル(quality-profile.json)</td><td>対象種別、参照規格と版、適用レベル、技術評価結論を機械可読で固定する</td><td>発注元・セキュリティ担当・機械検証</td></tr>
+    <tr><td>要求マトリクス(requirements-matrix.csv)</td><td>要求ID、適用性、重要度、検証方法、証拠、結果、未解決事項を追跡する</td><td>品質保証・外部専門機関</td></tr>
+    <tr><td>監査報告書(audit-report.md)</td><td>技術評価結論(acceptable-within-scope/conditional/not-acceptable)・重大指摘・残余リスクを示す</td><td>経営層・決裁者・発注元</td></tr>
     <tr><td>監査調書(audit-workpaper.md)</td><td>全検査のコマンド・ツールバージョン・マスキング済みAI出力。第三者が同じ監査を再実行できる証跡</td><td>技術者・外部専門機関</td></tr>
     <tr><td>未検証面台帳(unverified-ledger.md)</td><td>「検証しなかった領域」の一覧。「指摘なし」と「安全」を区別する</td><td>全読者・外部診断の発注仕様</td></tr>
     <tr><td>封印記録(seal.json)</td><td>生成物を除く監査範囲内の全追跡ファイルのハッシュ値。検証コマンドで変更・削除・追加を検出する</td><td>機械照合用</td></tr>
   </table></div>
   <div class="box important"><b class="tag">こんな人のためのスキルです</b>
   ・AIでアプリ・業務システムを作ったが、「本当に大丈夫なのか」を口頭ではなく文書で示したい開発者(個人・企業を問わず)<br>
-  ・納品物に「AI開発でもここまで検証しています」という品質証明を付けたい開発会社<br>
+  ・納品物に「AI開発でもここまで検証しています」という品質説明資料を付けたい個人開発者・開発会社<br>
   ・官公庁・取引先などの監査・審査に説明責任を負う組織で、AIで作ったシステムの検証記録・証跡が必要な人</div>
   <p>本スキルの文書設計(証跡・検証範囲と限界の開示・指摘対応の記録・承認)は、実際に公的機関の監査・審査を受ける実務の作法をAI開発向けに翻案したものです。「監査に耐える文書化」の技術は、コードが書けるかどうかとは別のノウハウであり、エンジニア・非エンジニアを問わず必要になります。</p>
   <p>単発のコードレビューが欲しいだけなら、レビューコメントを返すツールで足ります。このスキルの価値は、<strong>「何を・どの基準で・どこまで検査し、何を検査していないか」まで文書として残る</strong>ことにあります。</p>
@@ -129,8 +131,8 @@
   <h3>3-1. 異系統AI相互監査という考え方</h3>
   <p>実装するAIと監査するAIを<strong>開発元の異なる別系統</strong>にし、同じ会話の説明に引きずられない独立した観点を追加します。</p>
   <div class="box warn"><b class="tag">正直な留保(重要)</b>異系統AI監査の利点は研究に基づく<strong>理論的な期待</strong>であり、実証された保証ではありません。本スキルは報告書にもこの留保を必ず記載します。「AIがAIを監査するから完璧」という主張は、本スキルの思想と正反対です。</div>
-  <h3>3-2. 独立再現モード</h3>
-  <p>監査AI(Codex)には<strong>仕様書とコードだけ</strong>を渡します。実装AIによる「このコードはこういう意図です」という説明は一切渡しません。説明を渡すと監査AIがそれに誘導されるためです。これは会計監査・内部監査の「3線防御モデル」における第3線(独立監査)の独立性と同じ考え方です。</p>
+  <h3>3-2. 説明分離レビュー</h3>
+  <p>監査AI(Codex)には<strong>仕様書とコードを一次入力</strong>として渡し、実装AIの自己説明を根拠にしません。説明への誘導を減らすための手法ですが、組織上の独立性や第三者監査を成立させるものではありません。人間のレビュー担当者、利害関係、承認者は別に記録します。</p>
   <h3>3-3. 監査の流れ</h3>
   <div class="svgwrap">
   <svg viewBox="0 0 840 120" width="840" height="120" role="img" aria-label="監査パイプライン図">
@@ -139,10 +141,10 @@
     <rect x="5" y="35" width="100" height="50" rx="8" fill="#eef1fb" stroke="#0017c1"/><text x="55" y="56" text-anchor="middle" fill="#0017c1" font-weight="bold">前提確認</text><text x="55" y="72" text-anchor="middle" fill="#414143" font-size="10">仕様書・禁止事項</text>
     <rect x="125" y="35" width="100" height="50" rx="8" fill="#eef1fb" stroke="#0017c1"/><text x="175" y="56" text-anchor="middle" fill="#0017c1" font-weight="bold">リスク格付け</text><text x="175" y="72" text-anchor="middle" fill="#414143" font-size="10">簡易/標準/厳格</text>
     <rect x="245" y="35" width="100" height="50" rx="8" fill="#fff" stroke="#414143"/><text x="295" y="56" text-anchor="middle" font-weight="bold">ツール層検査</text><text x="295" y="72" text-anchor="middle" fill="#414143" font-size="10">機械で白黒</text>
-    <rect x="365" y="35" width="110" height="50" rx="8" fill="#fdf1f1" stroke="#ec0000"/><text x="420" y="56" text-anchor="middle" fill="#a30000" font-weight="bold">Codex独立監査</text><text x="420" y="72" text-anchor="middle" fill="#414143" font-size="10">仕様+コードのみ</text>
+    <rect x="365" y="35" width="110" height="50" rx="8" fill="#fdf1f1" stroke="#ec0000"/><text x="420" y="56" text-anchor="middle" fill="#a30000" font-weight="bold">Codex別系統レビュー</text><text x="420" y="72" text-anchor="middle" fill="#414143" font-size="10">仕様+コード中心</text>
     <rect x="495" y="35" width="100" height="50" rx="8" fill="#fff" stroke="#414143"/><text x="545" y="56" text-anchor="middle" font-weight="bold">修正ループ</text><text x="545" y="72" text-anchor="middle" fill="#414143" font-size="10">解消まで反復</text>
     <rect x="615" y="35" width="100" height="50" rx="8" fill="#fff" stroke="#414143"/><text x="665" y="56" text-anchor="middle" font-weight="bold">能動的試験</text><text x="665" y="72" text-anchor="middle" fill="#414143" font-size="10">UAT・逆向き検証</text>
-    <rect x="735" y="35" width="100" height="50" rx="8" fill="#eef7f1" stroke="#197a4b"/><text x="785" y="56" text-anchor="middle" fill="#197a4b" font-weight="bold">報告書+封印</text><text x="785" y="72" text-anchor="middle" fill="#414143" font-size="10">4点セット出力</text>
+    <rect x="735" y="35" width="100" height="50" rx="8" fill="#eef7f1" stroke="#197a4b"/><text x="785" y="56" text-anchor="middle" fill="#197a4b" font-weight="bold">成果物+封印</text><text x="785" y="72" text-anchor="middle" fill="#414143" font-size="10">6点セット出力</text>
     <line x1="105" y1="60" x2="123" y2="60" stroke="#767678" stroke-width="1.5" marker-end="url(#m)"/>
     <line x1="225" y1="60" x2="243" y2="60" stroke="#767678" stroke-width="1.5" marker-end="url(#m)"/>
     <line x1="345" y1="60" x2="363" y2="60" stroke="#767678" stroke-width="1.5" marker-end="url(#m)"/>
@@ -191,7 +193,7 @@ brew install jscpd      # 複製コード検出</code></pre>
 /ai-audit</code></pre>
   <p>既定では読み取り専用監査を進めます。修正や能動的試験は、初回結果を見た利用者が対象と副作用を明示承認した場合だけ実行します。</p>
   <h3>5-3. 実行例(サンプルプロジェクト)</h3>
-  <p>本リポジトリの <code>examples/memo-tool/</code> は、削除・入力検証・リンク追跡などの欠陥を持つ公開fixtureを読み取り専用で監査し、反復修正後に「条件付き稼働可」へ至った再現例です。初回/最終Codexプロンプトと出力、9件の受入試験、欠陥fixtureが赤になる逆向き検証、seal v2を公開しています。</p>
+  <p>本リポジトリの <code>examples/memo-tool/</code> は、削除・入力検証・リンク追跡などの欠陥を持つ公開fixtureを読み取り専用で監査した再現例です。v1.1の9件の受入試験と逆向き検証は成功していますが、v1.2の要求ID単位で証拠を再収集していないため、技術評価結論を安全側の <code>not-acceptable</code> としています。過去の結果を新基準へ水増し移行しない例でもあります。</p>
 </section>
 
 <section id="pipeline">
@@ -199,7 +201,7 @@ brew install jscpd      # 複製コード検出</code></pre>
   <div class="phase"><span class="flownum">0</span><div><strong>前提確認</strong> — 仕様書と禁止事項リストの存在確認、gitの状態確認(作業ツリーがクリーンであること)、対象コミットIDの記録、Codex CLIの動作確認。</div></div>
   <div class="phase"><span class="flownum">1</span><div><strong>リスク格付け</strong> — 影響度・データ機密度・自律性の3軸でシステムを格付けし、監査メニュー(簡易/標準/厳格)を決定。判定理由は監査調書に記録(詳細は第7章 領域0)。</div></div>
   <div class="phase"><span class="flownum">2</span><div><strong>ツール層検査</strong> — 機械で白黒つく項目:シークレット検出、通信経路の全数検索、静的解析、依存パッケージの実在確認(AIが実在しないパッケージ名を挙げる「slopsquatting」対策)、既知脆弱性(CVE)、ライセンス。全コマンドとバージョンを調書に記録。指摘には可能な限りCWE番号(脆弱性の世界共通の分類番号)を併記。</div></div>
-  <div class="phase"><span class="flownum">3</span><div><strong>Codex独立監査</strong> — 監査AIに仕様書とコードのパスのみを渡し、重大度付きで判定。秘密値を除去した出力と正確なセッションIDを調書に記録。</div></div>
+  <div class="phase"><span class="flownum">3</span><div><strong>Codex別系統レビュー</strong> — 監査AIに仕様書とコードのパスを一次入力として渡し、重大度付きで判定。秘密値を除去した出力と正確なセッションIDを調書に記録。第三者性は主張しません。</div></div>
   <div class="phase"><span class="flownum">4</span><div><strong>修正ループ</strong> — 初回報告後に明示承認がある場合だけ修正し、同じセッションIDで全対象を再検証します。</div></div>
   <div class="phase"><span class="flownum">5</span><div><strong>能動的試験</strong> — 別承認を得たうえで隔離環境だけで実施します。<strong>本番環境では実行しません</strong>。逆向き検証は本体を変更しないfixtureまたは一時worktreeで行います。</div></div>
   <div class="phase"><span class="flownum">6</span><div><strong>成果物生成と封印</strong> — 生成物を除く監査範囲内の全追跡ファイルをSHA-256で封印。静的ファイルは自動更新されないため、公開・納品前に検証コマンドを実行し、差分があれば失効扱いにします。</div></div>
@@ -271,19 +273,25 @@ brew install jscpd      # 複製コード検出</code></pre>
   <h2>8. 参照している公知の標準</h2>
   <p>本スキルの監査基準は、プロの受託開発・監査実務が拠り所にする公知の標準を<strong>参照して</strong>設計されています。</p>
   <div class="box danger"><b class="tag">「準拠」ではなく「参照」— 誇張禁止の原則</b>本スキルは認証を取得するものではないため、報告書では「ISO準拠」「ASVS認証」のような言い切りを禁止し、「〜を参照して設計した監査基準」と表記します。なお OWASP ASVS の一次文書自身が「OWASPは何も認証しない。第三者の『ASVS認証』の主張は非公式」と明記しており、この表記方針は標準側の推奨態度とも一致します。</div>
+  <p>v1.2では、適用した資料の名称・版・公式URL・取得日・適用レベルを <code>quality-profile.json</code> に固定し、各要求IDと証拠を <code>requirements-matrix.csv</code> で結びます。単に規格名を並べるのではなく、<code>referenced</code>、<code>mapped</code>、<code>verified</code> を区別します。</p>
+  <div class="box important"><b class="tag">省略・空証拠・報告書改ざんを機械拒否</b>AI-AUDITの53統制、ISO品質9特性、NIST SSDF v1.1の47 task ID、iOS時のMASVS v2.1.0全24統制とApple検査群を版付き母集団として照合します。元要求IDの重複と証拠ID・パス・ハッシュの要求間使い回しを拒否し、pass系の行には期待値、実測値、非空証拠、SHA-256を要求します。<code>validate-report</code> はJSONの結論とMarkdown見出し、代表的な禁止保証表現を照合します。</div>
+  <div class="box warn"><b class="tag">自由記述は人間が意味レビュー</b>同義語や遠回しな表現を正規表現だけで完全判定することはできません。報告書は既定で外部提出不可です。外部提出では、人間の承認記録をOpenSSHで署名し、顧客がbundle外で管理する公開鍵で <code>validate-release</code> します。署名記録は報告書、profile本体、matrix、調書・未検証台帳・証拠を含むbundle manifest、sealのハッシュを結びます。公開鍵の本人性・権限・失効は顧客組織が管理します。</div>
   <div class="tablewrap"><table>
     <tr><th>標準</th><th>それは何か</th><th>本スキルでの使い方</th></tr>
-    <tr><td>ISO/IEC 25010(JIS X 25010)</td><td>ソフトウェア品質を8特性(機能適合性・性能効率性・信頼性・セキュリティ・保守性など)で定義する国際規格。「品質とは何か」の世界共通語</td><td>領域9(基本品質)の分類の裏付け</td></tr>
-    <tr><td>ISO/IEC/IEEE 29119・ISTQB</td><td>ソフトウェアテストの国際規格と、テスト技術者の国際資格体系。テスト設計技法(境界値分析等)と文書化の標準</td><td>テスト設計・監査文書の型</td></tr>
+    <tr><td>ISO/IEC 25010:2023</td><td>製品品質モデルを9特性で定義する国際規格。「品質とは何か」の共通語</td><td>領域9と要求マトリクスの品質分類</td></tr>
+    <tr><td>ISO/IEC/IEEE 29119-2:2021 / 29119-3:2021</td><td>テストプロセスとテスト文書の国際規格</td><td>テスト設計・監査文書の型</td></tr>
+    <tr><td>NIST SP 800-218 SSDF v1.1</td><td>セキュアなソフトウェア開発実務を整理したNISTのフレームワーク</td><td>開発・供給網・脆弱性対応の要求ID</td></tr>
+    <tr><td>OWASP MASVS v2.1.0</td><td>モバイルアプリのセキュリティ検証標準</td><td>iOS/Android案件の要求ID。iOSではAppleのPrivacy Manifest・Entitlements・署名証拠も追加</td></tr>
     <tr><td>OWASP ASVS v5.0(2025年5月・17章)</td><td>Webアプリのセキュリティ検証項目を網羅した事実上の世界標準。検証の深さをレベル1(基本)〜3(最高保証)で段階化</td><td>レベル1〜3の考え方を監査メニュー(簡易/標準/厳格)に借用(設計思想の借用であり、要件の技術的同一視ではない)。領域4の設計妥当性確認</td></tr>
     <tr><td>OWASP Top 10 / CWE Top 25</td><td>Webアプリの10大リスクと、危険なソフトウェア弱点の公的ランキング</td><td>領域4の検査対象定義。指摘のCWE番号併記(第三者機関との共通語彙)</td></tr>
     <tr><td>OWASP LLM Top 10</td><td>AI(大規模言語モデル)応用の10大リスク分類。※実行時にAIを含む製品向けの基準であり、概念の援用であることを注記して使用</td><td>領域2の「Excessive Agency(過剰な自律性)」等の概念</td></tr>
     <tr><td>IPA 非機能要求グレード</td><td>非機能要件(可用性・性能・保守性等6分類)について発注者と開発者が同じ言葉で話すための国内フレームワーク</td><td>領域9の分類</td></tr>
     <tr><td>経産省 システム監査基準(令和5年)</td><td>国内のシステム監査人の行為規範。監査技法(チェックリスト法・ドキュメントレビュー法・突合/照合法・ウォークスルー法等)を定義</td><td>検査手順の型・監査調書の型(一次資料で技法の列挙を確認済み)</td></tr>
-    <tr><td>経産省・IPA 情報システム・モデル取引・契約書〈第二版〉</td><td>受託開発の契約雛形。検収(検査→不合格時の修正→みなし合格)と契約不適合責任の構造を定義</td><td>報告書第9章(監査意見・承認・有効期限)の書式の参考</td></tr>
+    <tr><td>経産省・IPA 情報システム・モデル取引・契約書〈第二版〉</td><td>受託開発の契約雛形。検収(検査→不合格時の修正→みなし合格)と契約不適合責任の構造を定義</td><td>報告書第9章(技術評価結論・承認・有効期限)の書式の参考</td></tr>
     <tr><td>個人情報保護法(APPI)安全管理措置</td><td>個人データを扱う事業者に求められる技術的措置(識別認証・アクセス制御・記録・暗号化・監視)</td><td>領域1の検証項目</td></tr>
     <tr><td>ISO/IEC 42001・NIST AI RMF(参考)</td><td>AIマネジメントの国際規格と米国のAIリスク管理フレームワーク。※AIシステム全般向けであることを注記して使用</td><td>領域7(ログ・継続監視・再監査)の翻案元</td></tr>
   </table></div>
+  <div class="box danger"><b class="tag">安全関連・OT・規制対象は強制停止</b>発電所、産業制御、機能安全などでは、一般IT向けの品質プロファイルだけで <code>acceptable-within-scope</code> にできません。案件固有の専門規格、ハザードから安全要求・試験・証拠・逸脱・承認までの追跡、FAT/SAT、独立V&amp;V、責任者承認を別途要求します。このスキルは法定検査や運転許可を代替しません。</div>
 </section>
 
 <section id="report">
@@ -291,17 +299,17 @@ brew install jscpd      # 複製コード検出</code></pre>
   <p>報告書は9章構成です。設計上のルールとともに解説します。</p>
   <div class="tablewrap"><table>
     <tr><th>章</th><th>内容</th><th>読みどころ</th></tr>
-    <tr><td>1. 経営要約</td><td>監査意見・重大指摘数・残余リスクを1ページで</td><td>まずここだけ読めば「使ってよいか」が分かる</td></tr>
+    <tr><td>1. 経営要約</td><td>技術評価結論・重大指摘数・残余リスクを1ページで</td><td>適用範囲内の判断と未解決条件が分かる</td></tr>
     <tr><td>2. 対象システムと業務目的</td><td>何のためのシステムで、壊れたら何が起きるか</td><td>非技術者の言葉で書かれる</td></tr>
     <tr><td>3. 監査対象・範囲・同一性</td><td>対象コミットID・ハッシュ・対象外の明示</td><td><strong>「監査したもの」と「動いているもの」が同じである証明</strong></td></tr>
-    <tr><td>4. リスク格付けと保証水準</td><td>格付け理由と監査の強度</td><td>「限定的保証」の意味に注意(下記)</td></tr>
+    <tr><td>4. リスク格付けと検証深度</td><td>格付け理由と検証の強度</td><td>参照・対応付け・検証済みの違いに注意</td></tr>
     <tr><td>5. 監査基準・方法・独立性</td><td>参照標準の一覧・独立再現モード・監査の限界</td><td>第三者がこの監査の設計を評価できる章</td></tr>
     <tr><td>6. 総合結果・領域別評価</td><td>各領域を「適合/条件付き適合/不適合/未評価」の4値で</td><td><strong>合格率・点数は意図的に使わない</strong>(重大な1件を平均が隠すため)</td></tr>
     <tr><td>7. 重要指摘と修正結果</td><td>重大度・業務影響・修正・再検証の一覧(CWE併記)</td><td>「何が見つかり、どう直したか」の透明性</td></tr>
     <tr><td>8. 残余リスク・未検証事項・利用条件</td><td>残る危険と、安全に使うための条件</td><td><strong>「指摘なし」と「安全」は違う</strong>——検証しなかった領域は未検証面台帳に全件記載</td></tr>
-    <tr><td>9. 監査意見・有効期限・承認</td><td>結論(稼働可/条件付き/不可)・失効条件・承認欄</td><td>コードが変更されたら意見は失効。責任者の承認欄で「残余リスクを誰が受容したか」を記録</td></tr>
+    <tr><td>9. 技術評価結論・有効期限・承認</td><td>結論(acceptable-within-scope/conditional/not-acceptable)・失効条件・承認欄</td><td>コードが変更されたら結論は失効。責任者の承認欄で「残余リスクを誰が受容したか」を記録</td></tr>
   </table></div>
-  <div class="box important"><b class="tag">「限定的保証」とは</b>会計監査の用語を借りた表現で、「実施した検査の範囲で問題は発見されなかった」という保証です。「すべての欠陥が存在しないことの保証」ではありません。この区別を明記することが、長期的な信頼を守ります。</div>
+  <div class="box important"><b class="tag">限定範囲の技術的検証</b>結論は <code>requirements-matrix.csv</code> の行判定から機械的に導出します。<code>acceptable-within-scope</code> でも認証や無欠陥を意味しません。必須の未試験、重大な不合格、対象外、将来の脆弱性は別に開示します。</div>
 </section>
 
 <section id="thirdparty">
@@ -352,7 +360,7 @@ brew install jscpd      # 複製コード検出</code></pre>
   <h4>Q. どのくらい時間・コストがかかりますか?</h4>
   <p>小規模プロジェクト(数百行)で、Codex呼び出し2〜4回+ツール検査で30分前後が目安です。CodexはChatGPTプランの利用枠を消費します。</p>
   <h4>Q. 監査後にコードを1行でも変えたらどうなりますか?</h4>
-  <p>封印(seal.json)のハッシュと一致しなくなり、監査意見は失効します。再監査(差分中心なので初回より速い)を実行してください。この厳格さが「監査済みのものと動いているものが同じ」という信頼の担保です。</p>
+  <p>封印(seal.json)のハッシュと一致しなくなり、技術評価結論は失効します。再監査(差分中心なので初回より速い)を実行してください。この厳格さが「監査済みのものと動いているものが同じ」という信頼の担保です。</p>
   <h4>Q. 自分のプロジェクトは仕様書がないのですが。</h4>
   <p>スキルが対話で「目的・主要機能・禁止事項・扱うデータ」を1ページに文書化するところから始めます。この仕様書化自体が、AI開発の品質を大きく上げる最初の一歩です。</p>
 </section>
@@ -361,7 +369,7 @@ brew install jscpd      # 複製コード検出</code></pre>
 </div>
 
 <footer>
-  ai-audit マニュアル v1.1 Preview(2026-08)/ 公知標準を参照した独自手順であり、認証・準拠・安全保証を意味しません。/ License: MIT
+  ai-audit マニュアル v1.2 Preview(2026-08)/ 公知標準を参照した独自手順であり、認証・第三者保証・安全保証を意味しません。/ License: MIT
 </footer>
 </body>
 </html>

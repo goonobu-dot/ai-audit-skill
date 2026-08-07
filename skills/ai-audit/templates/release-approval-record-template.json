@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "decision": "external-release-approved",
+  "system_name": "replace-with-system-name",
+  "quality_profile_version": "1.2.0",
+  "technical_conclusion": "conditional",
+  "profile_payload_sha256": "sha256:replace-with-64-lowercase-hex",
+  "requirements_matrix_sha256": "sha256:replace-with-64-lowercase-hex",
+  "report_sha256": "sha256:replace-with-64-lowercase-hex",
+  "audit_artifact_manifest_sha256": "sha256:replace-with-64-lowercase-hex",
+  "source_seal_sha256": "sha256:replace-with-64-lowercase-hex",
+  "reviewer_identity": "reviewer@example.com",
+  "reviewer_name": "replace-with-human-reviewer",
+  "reviewer_role": "replace-with-authorized-role",
+  "reviewer_organization": "replace-with-customer-organization",
+  "approved_at": "2026-08-07T12:00:00+09:00"
+}

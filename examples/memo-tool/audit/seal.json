@@ -13,5 +13,5 @@
     "plan.md": "sha256:966acb8990c54e1fcca3d70c19512e0faae2c2227862e0274d29d98a561b6fcd",
     "tests/test_memo_tool.py": "sha256:62b63942dd7af219477fe479e3a8d1c0ddaef87f3adb0d000e603fe7601b7222"
   },
-  "invalidation": "Run scripts/audit_guard.py verify-seal; any reported difference invalidates the opinion."
+  "invalidation": "Run scripts/audit_guard.py verify-seal; any reported difference invalidates the technical conclusion."
 }

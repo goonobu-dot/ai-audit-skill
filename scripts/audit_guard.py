@@ -24,6 +24,10 @@ redact_text = MODULE.redact_text
 create_seal = MODULE.create_seal
 verify_seal = MODULE.verify_seal
 validate_bundle = MODULE.validate_bundle
+validate_quality_package = MODULE.validate_quality_package
+validate_report_consistency = MODULE.validate_report_consistency
+validate_external_release = MODULE.validate_external_release
+derive_technical_conclusion = MODULE.derive_technical_conclusion
 scan_artifacts = MODULE.scan_artifacts
 main = MODULE.main
 

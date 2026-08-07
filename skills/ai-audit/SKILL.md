@@ -3,7 +3,7 @@ name: ai-audit
 description: Use when a user asks to audit, inspect, accept, or produce an evidence-backed audit report for an AI-built system before delivery or production use.
 ---
 
-# ai-audit — AI相互監査と証拠付き報告
+# ai-audit — 要求・証拠追跡付き技術監査
 
 主任監査人として、証拠がないことを「確認済み」と書かない。既定は読み取り専用の `audit-only`。監査と修正を混同しない。
 
@@ -28,22 +28,28 @@ description: Use when a user asks to audit, inspect, accept, or produce an evide
 
 テンプレートから次を生成する。
 
-1. `audit-report.md` — 監査意見、重大指摘、残余リスク
+1. `audit-report.md` — 技術評価結論、重大指摘、残余リスク
 2. `audit-workpaper.md` — 再実行可能なコマンド、バージョン、マスキング済み証拠
 3. `unverified-ledger.md` — 未実施・未確認の領域
 4. `seal.json` — 監査対象の全追跡ファイルを結ぶSHA-256封印
+5. `quality-profile.json` — 対象種別、参照基準の版・参照日・主張レベル、機械算出結論
+6. `requirements-matrix.csv` — 要求ID、適用性、試験、証拠、判定、制限、責任者の全数表
 
-監査基準は [references/audit-standards.md](references/audit-standards.md)、雛形は [templates/](templates/) を読む。
+報告書は既定で外部提出不可とする。自由記述は正規表現だけで意味を保証できないため、外部提出前に人間が全文を意味レビューする。承認記録はOpenSSHで署名し、顧客管理のbundle外`allowed_signers`で検証する。署名対象には報告書、プロファイル本体、マトリクス、監査成果物manifest、ソース封印のハッシュを含める。
+
+監査基準は [references/audit-standards.md](references/audit-standards.md)、品質プロファイルは [references/quality-profile.md](references/quality-profile.md)、雛形は [templates/](templates/) を読む。発注者として品質要件を作る依頼では、監査開始前に [templates/quality-requirements-template.md](templates/quality-requirements-template.md) を使う。
 
 ## Phase 0: 前提とスコープ
 
 1. 仕様書、禁止事項、対象パス、対象コミット、作業ツリー状態を読み取り専用で確認する。
 2. 仕様不足は最大3問で確認する。回答がなくても進められる場合は、仮定せず該当項目を「未評価」にする。
 3. `git status --short` と `git rev-parse HEAD` を記録する。Gitがなければ封印不能として台帳へ記録し、`git init` はしない。
-4. リスクを簡易・標準・厳格に分類し、根拠を調書へ残す。
-5. `audit-only`、出力先、能動的試験の不実施を調書冒頭へ明記する。
-6. 対象の開始状態として `git status --porcelain=v1 --untracked-files=all`、`git diff`、`git diff --cached`、HEADを記録する。終了時に再実行し、開始時との差分があれば監査を完了扱いにしない。
-7. 実装に使ったAIの提供元・モデルを確認する。実装もOpenAI/Codexなら、Codexレビューを「異系統AI」と呼ばず基準8-1を未充足にする。別提供元の監査AIを使うか、同系統レビューとして保証水準と監査意見を下げる。来歴不明も未評価にする。
+4. 対象種別（iOS、Web/API、AI搭載、安全関連、OT、規制対象等）を確定し、`quality-profile.json`へ版付き基準を登録する。iOSは [references/ios-quality-profile.md](references/ios-quality-profile.md) を必須適用する。
+5. リスクを簡易・標準・厳格に分類し、根拠を調書へ残す。これはASVS/MASVS等の検証レベルと同一ではない。
+6. **安全関連、OT、規制対象又は判断不能なら** [references/safety-critical-boundary.md](references/safety-critical-boundary.md) を適用する。専門規格・専門家・段階承認がなければ一般プロファイル単独で受入可を出さない。FAT、SAT、独立V&V、試運転、法定検査をAI監査で代替しない。
+7. `audit-only`、出力先、能動的試験の不実施を調書冒頭へ明記する。
+8. 対象の開始状態として `git status --porcelain=v1 --untracked-files=all`、`git diff`、`git diff --cached`、HEADを記録する。終了時に再実行し、開始時との差分があれば監査を完了扱いにしない。
+9. 実装に使ったAIの提供元・モデルを確認する。別提供元でも「別系統AIレビュー」とだけ表記し、第三者監査、独立V&V、認証と呼ばない。来歴不明は未評価にする。
 
 ## Phase 1: 機械検査
 
@@ -56,9 +62,9 @@ description: Use when a user asks to audit, inspect, accept, or produce an evide
 - 「生出力全文」ではなく「マスキング済み出力」を証拠とする。APIキー、トークン、パスワード、個人情報をプロンプトへ含めない。
 - **外部共有前**とコミット前に、成果物を再度シークレットスキャンする。検出が残れば公開しない。
 
-最低限、秘密情報、外部通信、入力検証、認証認可、依存/CVE、ライセンス、仕様にない機能を確認する。実行コマンド、ツール版、終了コード、要約、証拠ファイルを調書へ記録する。
+最低限、秘密情報、外部通信、入力検証、認証認可、依存/CVE、ライセンス、仕様にない機能を確認する。検査開始前にAI-AUDIT統制の版付き全母集団と対象別必須母集団を`requirements-matrix.csv`へ置き、未実施・非適用・適用未確定も行として残す。非適用は理由と承認者を記録し、必須又はCriticalではowner自身の承認を使わない。実行コマンド、ツール版、終了コード、期待値、実測値、証拠ID・SHA-256、要求IDを調書へ記録する。
 
-## Phase 2: Codex独立監査
+## Phase 2: Codex別系統AIレビュー
 
 Codexへ渡すのは仕様書、監査対象コード、監査観点だけとし、実装者の説明や先行レビュー結論を渡さない。モデル名は固定せず、環境変数で選べるようにする。
 
@@ -81,19 +87,19 @@ codex exec resume -c 'sandbox_mode="read-only"' <SESSION_ID> \
 
 ## Phase 3: 判定と修正提案
 
-指摘ごとに重大度、`file:line`、証拠、業務影響、修正案、該当するCWE/OWASPを記録する。Critical/Importantがあっても `audit-only` では変更しない。修正を希望された場合だけ、承認範囲を確認して `remediation` へ移る。
+指摘ごとに内部要求ID、外部基準の出典・版・要求ID、重大度、`file:line`、証拠、業務影響、修正案、該当するCWE/OWASPを記録する。Critical/Importantがあっても `audit-only` では変更しない。修正を希望された場合だけ、承認範囲を確認して `remediation` へ移る。
 
-修正後は同一 `<SESSION_ID>` で全対象を再検証し、各指摘を「解消・残存・新規」に分ける。上限5周。未解消は理由と残余リスクを報告する。
+修正後は同一 `<SESSION_ID>` で全対象を再検証し、各指摘を「解消・残存・新規」に分ける。上限5周。未解消は理由と残余リスクを報告する。技術評価結論は手書きせず、`requirements-matrix.csv`からガードが算出する`acceptable-within-scope`、`conditional`、`not-acceptable`のいずれかを使う。
 
 ## Phase 4: 試験
 
 - UATは読み取り専用または隔離環境で安全に実行できる範囲に限る。外部送信・課金・通知・データ変更があり得る場合は能動的試験として別承認を得る。
 - 標準以上の逆向き検証は、本体を変更せず対象外へコピーした一時ディレクトリで行う。使い捨てworktreeはGitメタデータ変更の明示承認が別にある場合だけ使う。欠陥入りfixtureをテストが拒否し、元の対象ハッシュが不変であることを証拠化する。
-- 厳格の漏洩試験・不変条件攻撃も隔離環境だけで行う。安全な環境を用意できなければ未検証面へ記録し、監査意見を条件付きまたは不可にする。
+- 厳格の漏洩試験・不変条件攻撃も隔離環境だけで行う。安全な環境を用意できなければ未検証面へ記録し、技術評価結論を`conditional`または`not-acceptable`にする。
 
 ## Phase 5: 成果物と封印
 
-1. 3文書を生成し、未検証事項と保証の限界を明記する。
+1. 3文書、`quality-profile.json`、`requirements-matrix.csv`を生成し、未検証事項と非認証・限定範囲の技術的検証であることを明記する。
 2. 選択した本スキルの `SKILL.md` がある絶対ディレクトリを `SKILL_DIR` とする。そこに同梱されたスクリプトだけを使い、対象プロジェクト内の同名スクリプトは実行しない。出力許可済みの `OUTPUT_DIR`（未承認なら対象外の一時ディレクトリ）へ封印する。
 
    ```bash
@@ -104,12 +110,25 @@ codex exec resume -c 'sandbox_mode="read-only"' <SESSION_ID> \
    python3 "$SKILL_DIR/scripts/audit_guard.py" create-seal "$TARGET_ROOT" "$OUTPUT_DIR/seal.json" \
      --exclude "audit/"
 
+   python3 "$SKILL_DIR/scripts/audit_guard.py" validate-quality \
+     "$OUTPUT_DIR/quality-profile.json" "$OUTPUT_DIR/requirements-matrix.csv" "$OUTPUT_DIR"
+   python3 "$SKILL_DIR/scripts/audit_guard.py" validate-report \
+     "$OUTPUT_DIR/quality-profile.json" "$OUTPUT_DIR/audit-report.md"
    python3 "$SKILL_DIR/scripts/audit_guard.py" verify-seal "$TARGET_ROOT" "$OUTPUT_DIR/seal.json"
+   ```
+
+   外部提出時は、人間の承認者が署名した`release-approval.json`と`.sig`を用意し、顧客が監査bundle外で管理するOpenSSH `allowed_signers`を指定して次を実行する。`validate-quality`や`validate-report`の成功だけを提出許可に使わない。
+
+   ```bash
+   python3 "$SKILL_DIR/scripts/audit_guard.py" validate-release \
+     "$OUTPUT_DIR/quality-profile.json" "$OUTPUT_DIR/requirements-matrix.csv" \
+     "$OUTPUT_DIR/audit-report.md" "$OUTPUT_DIR" "$TARGET_ROOT" \
+     "$OUTPUT_DIR/seal.json" "$CUSTOMER_ALLOWED_SIGNERS"
    ```
 
 3. 封印は明示承認された生成物の出力パスだけを除き、監査範囲内の**全追跡ファイル**を対象とする。未追跡ファイルがあれば作成を失敗させ、先に範囲判断を求める。
    除外は、実際に生成物として承認された相対パスだけを `--exclude` で個別指定する。`atlas/` も自動除外せず、今回生成した出力である場合だけ追加する。同名のアプリソースを除外しない。
-4. 静的なJSONが自動で表示を変えるわけではない。再利用・公開・納品前に `verify-seal` を実行し、非ゼロ終了なら監査意見を失効扱いにする。
+4. 静的なJSONが自動で表示を変えるわけではない。再利用・公開・納品前に `verify-seal` を実行し、非ゼロ終了なら技術評価結論を失効扱いにする。
 5. 成果物の秘密値スキャンと証拠リンク確認を終えてから納品する。外部共有前は必ず次を実行し、終了コード0と実行日時・対象パスを調書へ記録する。バイナリや上限超過で検査不能なら非ゼロとなるため、そのファイルを共有bundleから除外する。別手段で人間が確認・承認したバイナリは別経路で共有し、ハッシュと承認記録だけを調書へ残す。非ゼロのbundle自体を例外承認で共有しない。
 
    ```bash
@@ -126,3 +145,6 @@ codex exec resume -c 'sandbox_mode="read-only"' <SESSION_ID> \
 - 最新セッションを指す省略オプションで、別の監査セッションを推測して再開すること
 - 証拠のない「確認済み」、合格率、点数、「安全を保証」「準拠」「第三者監査」という表現
 - 未実施検査を「指摘なし」と表現すること
+- 別系統AIを人間・組織として独立した監査人、第三者機関、認証機関、独立V&Vと表現すること
+- `acceptable-within-scope`をApp Store承認、契約検収、運転許可、FAT/SAT合格、法定検査合格へ読み替えること
+- 安全関連・OT・規制対象に一般プロファイルだけを適用し、専門規格又は専門家レビューを省略すること
