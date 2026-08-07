@@ -150,8 +150,12 @@ class RepositoryContractTests(unittest.TestCase):
         manual = (ROOT / "docs" / "index.html").read_text(encoding="utf-8")
         for filename in required_guides:
             self.assertIn(filename, readme)
-        for filename in ("getting-started.md", "audit-notes.md", "freelance-playbook.md", "privacy-checklist.md"):
-            self.assertIn(filename, manual)
+        for filename in required_guides:
+            rendered_url = (
+                "https://github.com/goonobu-dot/ai-audit-skill/blob/main/docs/"
+                f"{filename}"
+            )
+            self.assertIn(rendered_url, manual)
 
     def test_public_material_does_not_expose_local_paths_or_private_email(self):
         public_files = [
