@@ -132,6 +132,55 @@ class RepositoryContractTests(unittest.TestCase):
         self.assertIn("個人開発者", readme)
         self.assertIn("セキュリティ担当", readme)
 
+    def test_public_guides_cover_onboarding_audit_notes_freelance_and_privacy(self):
+        required_guides = {
+            "getting-started.md": "5分",
+            "audit-notes.md": "監査内容の詳しい備考",
+            "freelance-playbook.md": "説明できる工程",
+            "privacy-checklist.md": "公開前プライバシー",
+            "github-growth-guide.md": "Star",
+        }
+
+        for filename, marker in required_guides.items():
+            guide = ROOT / "docs" / filename
+            self.assertTrue(guide.is_file(), filename)
+            self.assertIn(marker, guide.read_text(encoding="utf-8"), filename)
+
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        manual = (ROOT / "docs" / "index.html").read_text(encoding="utf-8")
+        for filename in required_guides:
+            self.assertIn(filename, readme)
+        for filename in ("getting-started.md", "audit-notes.md", "freelance-playbook.md", "privacy-checklist.md"):
+            self.assertIn(filename, manual)
+
+    def test_public_material_does_not_expose_local_paths_or_private_email(self):
+        public_files = [
+            ROOT / "README.md",
+            ROOT / "CONTRIBUTING.md",
+            *sorted((ROOT / "docs").glob("*.md")),
+            ROOT / "docs" / "index.html",
+        ]
+        forbidden_markers = ("/Users/", "/private/tmp/")
+        private_email = re.compile(
+            r"[A-Z0-9._%+-]+@(?!example\.invalid\b)(?!users\.noreply\.github\.com\b)"
+            r"[A-Z0-9.-]+\.[A-Z]{2,}",
+            re.IGNORECASE,
+        )
+
+        for path in public_files:
+            text = path.read_text(encoding="utf-8")
+            for marker in forbidden_markers:
+                self.assertNotIn(marker, text, f"{marker!r} found in {path}")
+            self.assertIsNone(private_email.search(text), f"private email found in {path}")
+
+        manual = (ROOT / "docs" / "index.html").read_text(encoding="utf-8")
+        self.assertIn("公開された品質・セキュリティ標準", manual)
+
+    def test_public_documentation_passes_artifact_scan(self):
+        from scripts.audit_guard import scan_artifacts
+
+        self.assertEqual([], scan_artifacts(ROOT / "docs"))
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,0 +1,44 @@
+name: Audit coverage request
+description: 新しい監査対象・基準・証拠の追加提案
+title: "[Coverage] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        特定顧客の内部要求を貼らず、一般化した監査観点と公開一次資料を示してください。
+  - type: input
+    id: target
+    attributes:
+      label: 対象
+      placeholder: Android / Web API / AIエージェント / デスクトップ
+    validations:
+      required: true
+  - type: textarea
+    id: risk
+    attributes:
+      label: 防ぎたい失敗・リスク
+    validations:
+      required: true
+  - type: textarea
+    id: check
+    attributes:
+      label: 追加したい検査と期待する証拠
+    validations:
+      required: true
+  - type: input
+    id: source
+    attributes:
+      label: 公開一次資料
+      placeholder: 公式標準・公式文書のURL
+    validations:
+      required: true
+  - type: checkboxes
+    id: boundary
+    attributes:
+      label: 境界確認
+      options:
+        - label: 認証・第三者保証・法的判断を要求する提案ではありません
+          required: true
+        - label: 顧客情報、個人情報、秘密情報を含めていません
+          required: true
