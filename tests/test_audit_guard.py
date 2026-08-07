@@ -17,6 +17,8 @@ class AuditGuardTests(unittest.TestCase):
         subprocess.run(["git", "config", "user.name", "Audit Test"], cwd=self.repo, check=True)
         (self.repo / "app.py").write_text("print('safe')\n", encoding="utf-8")
         (self.repo / "config.toml").write_text("mode = 'local'\n", encoding="utf-8")
+        (self.repo / ".audit").mkdir()
+        (self.repo / ".audit" / "source.py").write_text("VALUE = 1\n", encoding="utf-8")
         (self.repo / "audit").mkdir()
         (self.repo / "audit" / "audit-report.md").write_text("# report\n", encoding="utf-8")
         subprocess.run(["git", "add", "."], cwd=self.repo, check=True)
@@ -33,6 +35,13 @@ class AuditGuardTests(unittest.TestCase):
             "github=ghp_abcdefghijklmnopqrstuvwxyz1234567890\n"
             "aws=AKIAIOSFODNN7EXAMPLE\n"
             "password: CorrectHorseBatteryStaple\n"
+            "password=CorrectHorseBatteryStaple123A4567\n"
+            "pin=123456\n"
+            "recovery_code=RecoverMe1234567890ABC\n"
+            "Authorization: Bearer vendorToken_0123456789abcdef\n"
+            'access_token: "opaqueVendorToken0123456789abcdef"\n'
+            '{"access_token": "a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1"}\n'
+            "jwt=eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.signature0123456789\n"
         )
 
         redacted = redact_text(raw)
@@ -41,22 +50,65 @@ class AuditGuardTests(unittest.TestCase):
         self.assertNotIn("ghp_abcdefghijklmnopqrstuvwxyz1234567890", redacted)
         self.assertNotIn("AKIAIOSFODNN7EXAMPLE", redacted)
         self.assertNotIn("CorrectHorseBatteryStaple", redacted)
-        self.assertGreaterEqual(redacted.count("[REDACTED:sha256:"), 4)
+        self.assertNotIn("vendorToken_0123456789abcdef", redacted)
+        self.assertNotIn("opaqueVendorToken0123456789abcdef", redacted)
+        self.assertNotIn("a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1", redacted)
+        self.assertNotIn("eyJhbGciOiJIUzI1NiJ9", redacted)
+        self.assertIn("password: [REDACTED]", redacted)
+        self.assertIn("password=[REDACTED]", redacted)
+        self.assertIn("pin=[REDACTED]", redacted)
+        self.assertIn("recovery_code=[REDACTED]", redacted)
+        self.assertGreaterEqual(redacted.count("[REDACTED:sha256:"), 3)
+
+    def test_redact_cli_can_delete_raw_temporary_input_after_safe_output(self):
+        from scripts.audit_guard import main
+
+        raw_path = self.repo / "audit" / "raw.yaml"
+        safe_path = self.repo / "audit" / "safe.yaml"
+        raw_path.write_text("Authorization: Bearer vendorToken_0123456789abcdef\n", encoding="utf-8")
+
+        result = main(
+            ["redact", str(raw_path), "--output", str(safe_path), "--delete-source"]
+        )
+
+        self.assertEqual(0, result)
+        self.assertFalse(raw_path.exists())
+        self.assertNotIn("vendorToken_0123456789abcdef", safe_path.read_text(encoding="utf-8"))
+
+    def test_redact_cli_rejects_same_input_and_output_path(self):
+        from scripts.audit_guard import main
+
+        raw_path = self.repo / "audit" / "raw.txt"
+        raw_path.write_text("password=do-not-delete-me\n", encoding="utf-8")
+
+        result = main(
+            ["redact", str(raw_path), "--output", str(raw_path), "--delete-source"]
+        )
+
+        self.assertEqual(2, result)
+        self.assertTrue(raw_path.exists())
 
     def test_seal_verifies_all_non_audit_tracked_files(self):
         from scripts.audit_guard import create_seal, verify_seal
 
         seal_path = self.repo / "audit" / "seal.json"
-        seal = create_seal(self.repo, seal_path)
+        seal = create_seal(self.repo, seal_path, exclusions=("audit/", "atlas/"))
 
-        self.assertEqual({"app.py", "config.toml"}, set(seal["artifacts"]))
+        self.assertEqual({".audit/source.py", "app.py", "config.toml"}, set(seal["artifacts"]))
         self.assertEqual([], verify_seal(self.repo, seal_path))
+
+    def test_default_seal_does_not_blanket_exclude_audit_source_directory(self):
+        from scripts.audit_guard import create_seal
+
+        seal = create_seal(self.repo, self.repo / "audit" / "seal.json")
+
+        self.assertIn("audit/audit-report.md", seal["artifacts"])
 
     def test_seal_ignores_generated_audit_outputs(self):
         from scripts.audit_guard import create_seal, verify_seal
 
         seal_path = self.repo / "audit" / "seal.json"
-        create_seal(self.repo, seal_path)
+        create_seal(self.repo, seal_path, exclusions=("audit/", "atlas/"))
         (self.repo / "audit" / "audit-report.md").write_text("# updated report\n", encoding="utf-8")
 
         self.assertEqual([], verify_seal(self.repo, seal_path))
@@ -65,7 +117,7 @@ class AuditGuardTests(unittest.TestCase):
         from scripts.audit_guard import create_seal, verify_seal
 
         seal_path = self.repo / "audit" / "seal.json"
-        create_seal(self.repo, seal_path)
+        create_seal(self.repo, seal_path, exclusions=("audit/", "atlas/"))
         (self.repo / "app.py").write_text("print('changed')\n", encoding="utf-8")
         (self.repo / "config.toml").unlink()
         (self.repo / "new_source.py").write_text("print('new')\n", encoding="utf-8")
@@ -81,13 +133,68 @@ class AuditGuardTests(unittest.TestCase):
 
         first_path = self.repo / "audit" / "seal-1.json"
         second_path = self.repo / "audit" / "seal-2.json"
-        first = create_seal(self.repo, first_path)
-        second = create_seal(self.repo, second_path)
+        first = create_seal(self.repo, first_path, exclusions=("audit/", "atlas/"))
+        second = create_seal(self.repo, second_path, exclusions=("audit/", "atlas/"))
         first.pop("sealed_at")
         second.pop("sealed_at")
 
         self.assertEqual(first, second)
         json.dumps(first, sort_keys=True)
+
+    def test_create_seal_rejects_dirty_tracked_source(self):
+        from scripts.audit_guard import create_seal
+
+        (self.repo / "app.py").write_text("print('dirty')\n", encoding="utf-8")
+
+        with self.assertRaisesRegex(ValueError, "modified audited files"):
+            create_seal(
+                self.repo,
+                self.repo / "audit" / "seal.json",
+                exclusions=("audit/", "atlas/"),
+            )
+
+    def test_verify_seal_detects_tampered_manifest_digest(self):
+        from scripts.audit_guard import create_seal, verify_seal
+
+        seal_path = self.repo / "audit" / "seal.json"
+        seal = create_seal(self.repo, seal_path, exclusions=("audit/", "atlas/"))
+        seal["source_manifest_sha256"] = "sha256:" + "0" * 64
+        seal_path.write_text(json.dumps(seal), encoding="utf-8")
+
+        self.assertIn("manifest digest mismatch", verify_seal(self.repo, seal_path))
+
+    def test_create_seal_rejects_tracked_symlink(self):
+        from scripts.audit_guard import create_seal
+
+        external = self.repo.parent / "outside.txt"
+        external.write_text("outside\n", encoding="utf-8")
+        (self.repo / "linked.txt").symlink_to(external)
+        subprocess.run(["git", "add", "linked.txt"], cwd=self.repo, check=True)
+        subprocess.run(
+            ["git", "commit", "-m", "add symlink"],
+            cwd=self.repo,
+            check=True,
+            capture_output=True,
+        )
+
+        with self.assertRaisesRegex(ValueError, "symlink"):
+            create_seal(
+                self.repo,
+                self.repo / "audit" / "seal.json",
+                exclusions=("audit/", "atlas/"),
+            )
+
+    def test_publication_scan_checks_yaml_for_bearer_tokens(self):
+        from scripts.audit_guard import scan_artifacts
+
+        evidence = self.repo / "audit" / "evidence.yaml"
+        evidence.write_text(
+            "Authorization: Bearer vendorToken_0123456789abcdef\n", encoding="utf-8"
+        )
+
+        errors = scan_artifacts(self.repo / "audit")
+
+        self.assertTrue(any("raw secret-like value: evidence.yaml" in error for error in errors))
 
 
 if __name__ == "__main__":

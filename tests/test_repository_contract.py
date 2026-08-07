@@ -14,7 +14,7 @@ class RepositoryContractTests(unittest.TestCase):
         self.assertIn("明示承認", skill)
         self.assertIn("本番環境で能動的試験を実行しない", skill)
         self.assertNotIn("resume --last", skill)
-        self.assertRegex(skill, r"resume\s+<SESSION_ID>")
+        self.assertRegex(skill, r"resume[^\n]+<SESSION_ID>")
 
     def test_skill_forbids_persisting_raw_secrets(self):
         skill = (ROOT / "skills" / "ai-audit" / "SKILL.md").read_text(encoding="utf-8")

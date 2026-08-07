@@ -8,6 +8,7 @@
 - 対象:このディレクトリの `seal.json` に列挙した全追跡ファイル（`audit/` と `atlas/` は生成物として除外）
 - 実行環境:macOS / Python 3.14.6
 - 監査AI:Codex CLI 0.144.5 / gpt-5.6-sol / xhigh
+- 実装AI:Claude（Anthropic）。監査AIとは提供元が異なる
 - CodexセッションID:`019fda66-ba45-7990-881b-2d11821d77ef`
 - 権限:Codexはread-only。欠陥fixtureと最終コードの試験はいずれも一時ディレクトリ内で実行
 
@@ -23,7 +24,7 @@
 
 - 外部依存:なし（Python標準ライブラリのみ）
 - 外部通信:対象コードにHTTP、socket、外部プロセス実行なし
-- 秘密情報:公開証拠に実在の秘密値なし。検出時は秘密値そのものを保存せず、マスク表示とSHA-256短縮指紋のみを残す
+- 秘密情報:公開証拠に実在の秘密値なし。高エントロピートークンだけ照合用SHA-256短縮指紋を許容し、パスワード等は指紋も残さない
 - 受入試験:`python3 -m unittest discover -s tests -v` → 9 tests / exit 0
 - 証拠:`evidence/uat-log.txt`
 
@@ -47,7 +48,7 @@
 ## W6. 能動的試験
 
 - 逆向き検証:`evidence/vulnerable-memo.py` を `MEMO_TOOL_PATH` で隔離注入
-- 欠陥fixture:exit 1 / failures=2 / errors=2
+- 欠陥fixture:exit 1 / failures=6 / errors=2
 - 最終コード:9 tests / exit 0
 - 証拠:`evidence/reverse-test.log`
 - 本体コードやGitブランチへの欠陥注入:なし
@@ -55,10 +56,11 @@
 
 ## W7. 封印
 
-- 生成:`python3 ../../../scripts/audit_guard.py create-seal . audit/seal.json`
-- 照合:`python3 ../../../scripts/audit_guard.py verify-seal . audit/seal.json`
+- 生成（リポジトリルートから）:`python3 scripts/audit_guard.py create-seal examples/memo-tool examples/memo-tool/audit/seal.json --exclude audit/ --exclude atlas/`
+- 照合（リポジトリルートから）:`python3 scripts/audit_guard.py verify-seal examples/memo-tool examples/memo-tool/audit/seal.json`
 - `seal.json` は全対象ファイルのSHA-256とマニフェストSHA-256を記録する
 - 静的JSONは自動更新されない。公開・納品・再利用前に照合し、非ゼロなら監査意見を失効扱いにする
+- 外部共有ゲート:`python3 scripts/audit_guard.py scan-artifacts examples/memo-tool/audit` / 2026-08-07 / exit 0 / UTF-8テキスト以外なし / 公開可
 
 ## W8. 限界
 
