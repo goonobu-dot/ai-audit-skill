@@ -1,3 +1,10 @@
+---
+layout: guide
+title: GitHubで利用者とStarを増やす運用ガイド
+description: ai-auditの利用開始、信頼、継続改善を通じてOSSを育てる実務ガイド
+permalink: /github-growth-guide.html
+---
+
 # GitHubで利用者とStarを増やす運用ガイド
 
 Starは直接集めるものではなく、訪問者が「自分の問題を解決できる」「後で使いたい」「更新を追いたい」と判断した結果です。短期的な宣伝より、利用開始の摩擦、信頼、継続改善を優先します。

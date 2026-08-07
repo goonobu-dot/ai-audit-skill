@@ -10,7 +10,7 @@ AIで作ったアプリや業務システムについて、**何を基準に、�
 
 > English: Evidence-backed technical audit workflow for AI-built software. It maps versioned requirements to tests, evidence, findings, limitations, and release approvals.
 
-**[詳しい日本語マニュアル](https://goonobu-dot.github.io/ai-audit-skill/)** · **[5分で始める](docs/getting-started.md)** · **[副業・受託での使い方](docs/freelance-playbook.md)** · **[監査内容の詳しい備考](docs/audit-notes.md)**
+**[詳しい日本語マニュアル](https://goonobu-dot.github.io/ai-audit-skill/)** · **[5分で始める](https://goonobu-dot.github.io/ai-audit-skill/getting-started.html)** · **[副業・受託での使い方](https://goonobu-dot.github.io/ai-audit-skill/freelance-playbook.html)** · **[監査内容の詳しい備考](https://goonobu-dot.github.io/ai-audit-skill/audit-notes.html)**
 
 役に立った場合は、リポジトリ右上の **Star** で応援してください。実際の案件で不足した検査や分かりにくい点は、個人情報・顧客情報・秘密情報を除いて[Issue](https://github.com/goonobu-dot/ai-audit-skill/issues)へ共有してください。
 
@@ -51,7 +51,7 @@ AIで作ったアプリや業務システムについて、**何を基準に、�
 | 保守・運用 | ログ、監視、復旧、引継ぎ、再監査条件 | 運用手順、復元試験、code-atlas |
 | 監査プロセス | 権限境界、別系統レビュー、未検証、承認 | 調書、台帳、署名承認記録 |
 
-詳細な検査目的、判断方法、証拠例、誤解しやすい点は[監査内容の詳しい備考](docs/audit-notes.md)にまとめています。
+詳細な検査目的、判断方法、証拠例、誤解しやすい点は[監査内容の詳しい備考](https://goonobu-dot.github.io/ai-audit-skill/audit-notes.html)にまとめています。
 
 ## 5分で試す
 
@@ -87,7 +87,7 @@ cp -R skills/code-atlas ~/.agents/skills/
 秘密情報や個人情報を成果物へ保存せず、未検証事項も明記してください。
 ```
 
-初回利用、実案件、外部提出の手順は[スタートガイド](docs/getting-started.md)を参照してください。
+初回利用、実案件、外部提出の手順は[スタートガイド](https://goonobu-dot.github.io/ai-audit-skill/getting-started.html)を参照してください。
 
 ## 標準成果物
 
@@ -113,16 +113,16 @@ cp -R skills/code-atlas ~/.agents/skills/
 - 納品時：報告書、未検証台帳、再実行手順を説明する
 - 保守時：変更差分を監査し、古い結論を失効させる
 
-営業文例、案件メニュー、見積もり条件、禁止表現は[副業・受託活用ガイド](docs/freelance-playbook.md)にあります。
+営業文例、案件メニュー、見積もり条件、禁止表現は[副業・受託活用ガイド](https://goonobu-dot.github.io/ai-audit-skill/freelance-playbook.html)にあります。
 
 ## ドキュメント
 
 - [Web版・詳細マニュアル](https://goonobu-dot.github.io/ai-audit-skill/)
-- [5分で始める・実案件の進め方](docs/getting-started.md)
-- [監査内容の詳しい備考](docs/audit-notes.md)
-- [副業・受託開発での活用](docs/freelance-playbook.md)
-- [公開前プライバシーチェック](docs/privacy-checklist.md)
-- [GitHubで利用者とStarを増やす運用](docs/github-growth-guide.md)
+- [5分で始める・実案件の進め方](https://goonobu-dot.github.io/ai-audit-skill/getting-started.html)
+- [監査内容の詳しい備考](https://goonobu-dot.github.io/ai-audit-skill/audit-notes.html)
+- [副業・受託開発での活用](https://goonobu-dot.github.io/ai-audit-skill/freelance-playbook.html)
+- [公開前プライバシーチェック](https://goonobu-dot.github.io/ai-audit-skill/privacy-checklist.html)
+- [GitHubで利用者とStarを増やす運用](https://goonobu-dot.github.io/ai-audit-skill/github-growth-guide.html)
 - [品質プロファイル仕様](skills/ai-audit/references/quality-profile.md)
 - [iOS品質プロファイル](skills/ai-audit/references/ios-quality-profile.md)
 - [安全関連・OT境界](skills/ai-audit/references/safety-critical-boundary.md)
@@ -141,7 +141,7 @@ cp -R skills/code-atlas ~/.agents/skills/
 
 公開リポジトリには、作者の勤務先、職歴、顧客名、案件名、実在人物の氏名、メールアドレス、端末パスを記載しません。監査成果物を公開する場合も、実データではなく架空データを使い、秘密値・個人情報・顧客情報を除去してください。
 
-[公開前プライバシーチェック](docs/privacy-checklist.md)と`scan-artifacts`を使用してください。
+[公開前プライバシーチェック](https://goonobu-dot.github.io/ai-audit-skill/privacy-checklist.html)と`scan-artifacts`を使用してください。
 
 ## コントリビューション
 

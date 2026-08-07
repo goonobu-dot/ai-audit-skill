@@ -1,3 +1,10 @@
+---
+layout: guide
+title: ai-audit スタートガイド
+description: ai-auditを5分で試し、実案件の監査と納品前確認まで進める手順
+permalink: /getting-started.html
+---
+
 # ai-audit スタートガイド
 
 このガイドは、初めて使う人が最初の5分でサンプル確認を始め、「自分の案件の監査 → 修正 → 納品前確認」まで進めるための手順書です。
@@ -151,7 +158,7 @@ python3 "$SKILL_DIR/scripts/audit_guard.py" validate-release \
   "/customer-controlled/allowed_signers"
 ```
 
-署名記録の形式は[品質プロファイル仕様](../skills/ai-audit/references/quality-profile.md)と[テンプレート](../skills/ai-audit/templates/release-approval-record-template.json)を参照してください。
+署名記録の形式は[品質プロファイル仕様](https://github.com/goonobu-dot/ai-audit-skill/blob/main/skills/ai-audit/references/quality-profile.md)と[テンプレート](https://github.com/goonobu-dot/ai-audit-skill/blob/main/skills/ai-audit/templates/release-approval-record-template.json)を参照してください。
 
 ## 11. 再監査が必要な条件
 
@@ -167,6 +174,6 @@ python3 "$SKILL_DIR/scripts/audit_guard.py" validate-release \
 ## 12. 困ったとき
 
 - コマンドやテンプレートの問題：[GitHub Issues](https://github.com/goonobu-dot/ai-audit-skill/issues)
-- 脆弱性や秘密情報：[SECURITY.md](../SECURITY.md)に従い、公開Issueへ書かない
-- 監査内容が分からない：[監査内容の詳しい備考](audit-notes.md)
-- 企業案件への組み込み：[副業・受託活用ガイド](freelance-playbook.md)
+- 脆弱性や秘密情報：[SECURITY.md](https://github.com/goonobu-dot/ai-audit-skill/blob/main/SECURITY.md)に従い、公開Issueへ書かない
+- 監査内容が分からない：[監査内容の詳しい備考](audit-notes.html)
+- 企業案件への組み込み：[副業・受託活用ガイド](freelance-playbook.html)

@@ -149,13 +149,40 @@ class RepositoryContractTests(unittest.TestCase):
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
         manual = (ROOT / "docs" / "index.html").read_text(encoding="utf-8")
         for filename in required_guides:
-            self.assertIn(filename, readme)
+            self.assertIn(filename.removesuffix(".md") + ".html", readme)
         for filename in required_guides:
-            rendered_url = (
-                "https://github.com/goonobu-dot/ai-audit-skill/blob/main/docs/"
-                f"{filename}"
-            )
+            rendered_url = f"{filename.removesuffix('.md')}.html"
             self.assertIn(rendered_url, manual)
+
+    def test_public_guides_are_generated_as_html_pages(self):
+        guide_names = (
+            "getting-started",
+            "audit-notes",
+            "freelance-playbook",
+            "privacy-checklist",
+            "github-growth-guide",
+        )
+        layout = ROOT / "docs" / "_layouts" / "guide.html"
+        stylesheet = ROOT / "docs" / "assets" / "guide.css"
+
+        self.assertTrue(layout.is_file())
+        self.assertTrue(stylesheet.is_file())
+        layout_text = layout.read_text(encoding="utf-8")
+        self.assertIn("{{ content }}", layout_text)
+        self.assertIn("guide.css", layout_text)
+
+        for name in guide_names:
+            source = (ROOT / "docs" / f"{name}.md").read_text(encoding="utf-8")
+            self.assertTrue(source.startswith("---\n"), name)
+            self.assertIn("layout: guide", source, name)
+            self.assertIn(f"permalink: /{name}.html", source, name)
+
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        manual = (ROOT / "docs" / "index.html").read_text(encoding="utf-8")
+        for name in guide_names:
+            public_url = f"https://goonobu-dot.github.io/ai-audit-skill/{name}.html"
+            self.assertIn(public_url, readme, name)
+            self.assertIn(f"{name}.html", manual, name)
 
     def test_public_material_does_not_expose_local_paths_or_private_email(self):
         public_files = [

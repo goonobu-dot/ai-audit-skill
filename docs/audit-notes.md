@@ -1,3 +1,10 @@
+---
+layout: guide
+title: 監査内容の詳しい備考
+description: ai-auditが何を、なぜ、どのように確認するかの詳細解説
+permalink: /audit-notes.html
+---
+
 # 監査内容の詳しい備考
 
 この文書は、ai-auditが「何を、なぜ、どのように確認するのか」を、監査を受け取る側にも説明できるようにした備考です。
