@@ -1,0 +1,2 @@
+requirement_id,source_id,source_version,source_requirement,applicability,applicability_approver,mandatory,severity,test_method,expected_result,actual_result,evidence_id,evidence,evidence_sha256,result,limitation,owner,hazard_id,design_item_id,test_id,deviation_id,residual_risk_id,stage_approval_id
+QA-AA-001,AI-AUDIT,1.2.0,AA-1.1,undetermined,,true,critical,secret scan and review,,,,,,not-tested,replace this row and add every required AI-AUDIT control from the inventory,security-owner,,,,,,

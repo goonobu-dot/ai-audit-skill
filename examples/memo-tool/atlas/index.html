@@ -51,7 +51,7 @@
     <span class="pill safe">外部への送信:なし(完全ローカル動作)</span>
     <span class="pill">データの保存場所:このPCの memos/ と archive/ フォルダのみ</span>
     <span class="pill">削除機能:なし(整理は「移動」のみ)</span>
-    <span class="pill audit">監査済:稼働可|報告書 MEMO-20260806-001|2026-08-06|Codex独立監査(生成時に監査対象ハッシュの一致を確認)</span>
+    <span class="pill audit">技術評価結論:not-acceptable|報告書 MEMO-20260807-003|2026-08-07|Codex別系統AIレビュー(生成時に監査対象ハッシュの一致を確認)</span>
   </div>
 </header>
 <div class="layout">
@@ -82,7 +82,7 @@
     <line x1="470" y1="110" x2="598" y2="132" stroke="#767678" stroke-width="1.5" marker-end="url(#a)"/><text x="520" y="136" font-size="11" fill="#414143">古いメモ</text>
   </svg>
   </div>
-  <p class="noext">外部への送信:なし — コード全文にインターネット通信の命令(urllib・requests・socket 等)が存在しないことを、パターン検索と独立監査AI(Codex)の両方で確認済み。</p>
+  <p class="noext">外部への送信:なし — コード全文にインターネット通信の命令(urllib・requests・socket 等)が存在しないことを、パターン検索と別系統AIレビュー(Codex)の両方で確認済み。</p>
   <h3>ファイル構成</h3>
   <table>
     <tr><th>場所</th><th>役割</th></tr>
@@ -154,7 +154,7 @@
                     except FileExistsError:
                         dest_name = f"{base}.{n}{ext}"
                         n += 1
-<span class="hl">                os.replace(path, dest)</span></pre><div class="explain">os.replace は「移動」の命令です。このコードのどこにも削除の命令(os.remove 等)は存在しません——これは独立監査AIが全文検索で確認済みです。既存の保管メモを誤って上書きしない仕組み(O_EXCL=排他的作成)も入っています(監査指摘F-01・F-07への対応)。</div></div></details>
+<span class="hl">                os.replace(path, dest)</span></pre><div class="explain">os.replace は「移動」の命令です。このコードのどこにも削除の命令(os.remove 等)は存在しません——これは別系統AIレビューが全文検索で確認済みです。既存の保管メモを誤って上書きしない仕組み(O_EXCL=排他的作成)も入っています(監査指摘F-01・F-07への対応)。</div></div></details>
   </div>
 </section>
 
@@ -162,7 +162,7 @@
   <h2>安全のための仕組み</h2>
   <p class="lead">仕様書の禁止事項(外部通信しない・削除しない・テレメトリを取らない)を守るための実装と、その根拠です。</p>
   <div class="step"><b class="no">守り 1</b><strong>外部通信の命令が存在しない</strong>:コード全文に通信系の命令(urllib・requests・socket・http)が1つもありません。
-    <details><summary>検証方法(監査調書W3)</summary><div class="evidence"><div class="explain">パターン検索(grep)で通信系命令ゼロを機械的に確認し、さらに独立監査AI(Codex)が同じ検索と実行試験で確認しています。証跡は audit/audit-workpaper.md。</div></div></details>
+    <details><summary>検証方法(監査調書W3)</summary><div class="evidence"><div class="explain">パターン検索(grep)で通信系命令ゼロを機械的に確認し、さらに別系統AIレビュー(Codex)が同じ検索と実行試験で確認しています。証跡は audit/audit-workpaper.md。</div></div></details>
   </div>
   <div class="step"><b class="no">守り 2</b><strong>メモ置き場の外に出ない</strong>:memos/ や archive/ が「別の場所への近道(シンボリックリンク)」にすり替えられていた場合、処理を中止します。
     <details><summary>memo.py:21-25</summary><div class="evidence"><pre>def check_dir_safety(d):

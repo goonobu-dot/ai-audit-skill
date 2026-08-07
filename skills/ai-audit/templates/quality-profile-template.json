@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "quality_profile_version": "1.2.0",
+  "system_name": "replace-with-system-name",
+  "target_types": [
+    "cli"
+  ],
+  "assurance_model": "limited-scope-technical-verification",
+  "certification_claimed": false,
+  "third_party_audit_claimed": false,
+  "technical_conclusion": "not-acceptable",
+  "report_release_gate": {
+    "status": "draft",
+    "semantic_review_required": true
+  },
+  "standards": [
+    {
+      "source_id": "AI-AUDIT",
+      "version": "1.2.0",
+      "role": "internal-control-inventory",
+      "claim_level": "mapped",
+      "coverage_scope": "all published AA-1.1 through AA-9.9 controls",
+      "official_uri": "https://github.com/goonobu-dot/ai-audit-skill/",
+      "retrieved_at": "2026-08-07"
+    },
+    {
+      "source_id": "ISO-IEC-25010",
+      "version": "2023",
+      "role": "quality-model",
+      "claim_level": "mapped",
+      "coverage_scope": "all nine product quality characteristics",
+      "official_uri": "https://www.iso.org/standard/78176.html",
+      "retrieved_at": "2026-08-07"
+    },
+    {
+      "source_id": "ISO-IEC-IEEE-29119-2",
+      "version": "2021",
+      "role": "test-process",
+      "claim_level": "referenced",
+      "coverage_scope": "test process structure",
+      "official_uri": "https://www.iso.org/standard/79428.html",
+      "retrieved_at": "2026-08-07"
+    },
+    {
+      "source_id": "ISO-IEC-IEEE-29119-3",
+      "version": "2021",
+      "role": "test-documentation",
+      "claim_level": "referenced",
+      "coverage_scope": "test documentation structure",
+      "official_uri": "https://www.iso.org/standard/79429.html",
+      "retrieved_at": "2026-08-07"
+    },
+    {
+      "source_id": "NIST-SP-800-218",
+      "version": "1.1",
+      "role": "secure-development",
+      "claim_level": "mapped",
+      "coverage_scope": "PO PS PW and RV practice groups",
+      "official_uri": "https://csrc.nist.gov/pubs/sp/800/218/final",
+      "retrieved_at": "2026-08-07"
+    }
+  ],
+  "sector_overlays": [],
+  "specialist_review_required": false
+}
