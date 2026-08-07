@@ -184,6 +184,53 @@ class RepositoryContractTests(unittest.TestCase):
             self.assertIn(public_url, readme, name)
             self.assertIn(f"{name}.html", manual, name)
 
+    def test_client_security_assurance_brief_is_complete_and_linked(self):
+        page = ROOT / "docs" / "client-security-assurance.html"
+        stylesheet = ROOT / "docs" / "assets" / "client-security-assurance.css"
+
+        self.assertTrue(page.is_file())
+        self.assertTrue(stylesheet.is_file())
+
+        page_text = page.read_text(encoding="utf-8")
+        for marker in (
+            "個人開発者による納品前技術監査",
+            "第三者機関による独立監査",
+            "提案・見積もり",
+            "要求・監査範囲の合意",
+            "修正・全体再検証",
+            "第三者監査への引継ぎパック",
+            "提案書に使える説明文",
+            "本資料は第三者監査を代替しません",
+            "quality-profile.json",
+            "unverified-ledger.md",
+            "seal.json",
+        ):
+            self.assertIn(marker, page_text)
+
+        self.assertIn('href="assets/client-security-assurance.css"', page_text)
+        self.assertIn('href="https://github.com/goonobu-dot/ai-audit-skill"', page_text)
+
+        css = stylesheet.read_text(encoding="utf-8")
+        self.assertIn("@media print", css)
+        self.assertIn("@media (max-width: 760px)", css)
+        self.assertIn("td:nth-child(1)::before", css)
+        self.assertIn('content: "第三者監査での用途"', css)
+        self.assertIn("display: table-header-group", css)
+        self.assertIn("break-inside: avoid", css)
+
+        linked_files = (
+            ROOT / "README.md",
+            ROOT / "docs" / "index.html",
+            ROOT / "docs" / "_layouts" / "guide.html",
+            ROOT / "docs" / "freelance-playbook.md",
+        )
+        for linked_file in linked_files:
+            self.assertIn(
+                "client-security-assurance.html",
+                linked_file.read_text(encoding="utf-8"),
+                linked_file.name,
+            )
+
     def test_public_material_does_not_expose_local_paths_or_private_email(self):
         public_files = [
             ROOT / "README.md",
