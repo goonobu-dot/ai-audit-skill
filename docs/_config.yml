@@ -1,0 +1,10 @@
+title: ai-audit マニュアル
+description: AI開発の要求・検査・証拠・未検証事項を説明する技術監査ガイド
+url: https://goonobu-dot.github.io
+baseurl: /ai-audit-skill
+markdown: kramdown
+kramdown:
+  input: GFM
+  hard_wrap: false
+exclude:
+  - README.md

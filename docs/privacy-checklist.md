@@ -1,3 +1,10 @@
+---
+layout: guide
+title: 公開前プライバシー・秘密情報チェック
+description: GitHubやSNSへ公開する前に個人情報、顧客情報、秘密値を確認する手順
+permalink: /privacy-checklist.html
+---
+
 # 公開前プライバシー・秘密情報チェック
 
 このチェックリストは、README、マニュアル、Issue、監査報告書、サンプルをGitHubやSNSへ公開する前に使います。

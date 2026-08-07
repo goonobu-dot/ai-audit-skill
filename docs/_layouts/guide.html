@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="{{ page.description | default: site.description | escape }}">
+  <title>{{ page.title | escape }} — ai-audit</title>
+  <link rel="stylesheet" href="{{ '/assets/guide.css' | relative_url }}">
+</head>
+<body>
+  <a class="skip-link" href="#main-content">本文へ移動</a>
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="brand" href="{{ '/' | relative_url }}">ai-audit マニュアル</a>
+      <p>要求・検査・証拠・未検証事項を追跡する、AI開発向け技術監査ガイド</p>
+      <div class="header-actions">
+        <a class="button primary" href="{{ '/getting-started.html' | relative_url }}">5分で始める</a>
+        <a class="button" href="https://github.com/goonobu-dot/ai-audit-skill">GitHub</a>
+      </div>
+    </div>
+  </header>
+
+  <div class="page-shell">
+    <nav class="guide-nav" aria-label="マニュアル内ナビゲーション">
+      <strong>ガイド一覧</strong>
+      <a href="{{ '/' | relative_url }}">総合マニュアル</a>
+      <a href="{{ '/getting-started.html' | relative_url }}">5分スタート</a>
+      <a href="{{ '/audit-notes.html' | relative_url }}">監査内容の備考</a>
+      <a href="{{ '/freelance-playbook.html' | relative_url }}">副業・受託活用</a>
+      <a href="{{ '/privacy-checklist.html' | relative_url }}">公開前チェック</a>
+      <a href="{{ '/github-growth-guide.html' | relative_url }}">GitHub運用</a>
+    </nav>
+
+    <main id="main-content" class="prose">
+      {{ content }}
+      <div class="next-actions">
+        <strong>次に行うこと</strong>
+        <a href="{{ '/getting-started.html' | relative_url }}">付属サンプルで動作を確認する</a>
+        <a href="https://github.com/goonobu-dot/ai-audit-skill/issues">質問・改善提案をIssueへ送る</a>
+      </div>
+    </main>
+  </div>
+
+  <footer class="site-footer">
+    <p>ai-audit v1.2 Preview — 公知標準を参照した限定範囲の技術的検証であり、認証・第三者保証・安全保証を意味しません。</p>
+  </footer>
+</body>
+</html>
