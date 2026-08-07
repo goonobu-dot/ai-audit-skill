@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="個人開発者が企業へ、セキュリティ対策・納品前技術監査・第三者監査への引継ぎを説明するための資料です。">
+  <title>セキュリティ・監査付き納品のご説明 — ai-audit</title>
+  <link rel="stylesheet" href="assets/client-security-assurance.css">
+</head>
+<body>
+  <a class="skip-link" href="#main-content">本文へ移動</a>
+
+  <header class="hero">
+    <nav class="topbar" aria-label="資料ナビゲーション">
+      <a class="brand" href="index.html">ai-audit</a>
+      <div class="top-links">
+        <a href="index.html">詳細マニュアル</a>
+        <a href="freelance-playbook.html">受託活用ガイド</a>
+        <a href="https://github.com/goonobu-dot/ai-audit-skill">GitHub</a>
+      </div>
+    </nav>
+
+    <div class="hero-grid">
+      <div>
+        <p class="eyebrow">企業向け説明資料｜iPhoneアプリ・業務システム開発</p>
+        <h1>セキュリティ対策と<br>監査工程を含む納品</h1>
+        <p class="lead">要求、テスト、証拠、指摘対応、未検証事項を一つの流れで管理し、納品先のセキュリティ担当、さらに第三者機関へ引き継げる状態で納品します。</p>
+        <div class="hero-actions no-print">
+          <button class="button primary" type="button" onclick="window.print()">印刷・PDF保存</button>
+          <a class="button" href="#flow">納品までの流れを見る</a>
+        </div>
+      </div>
+      <aside class="hero-summary" aria-label="提案の要点">
+        <p class="summary-label">この提案でお約束すること</p>
+        <ul class="check-list">
+          <li>監査対象のコードと範囲を固定</li>
+          <li>要求ごとに試験と証拠を追跡</li>
+          <li>指摘を修正し、全体を再検証</li>
+          <li>未検証事項と残余リスクを開示</li>
+          <li>第三者監査へ渡せる資料を整備</li>
+        </ul>
+      </aside>
+    </div>
+    <div class="status-row" aria-label="資料の前提">
+      <span>限定範囲の技術的検証</span>
+      <span>証拠に基づく説明</span>
+      <span>変更時は再監査</span>
+      <span>第三者機関へ引継ぎ可能</span>
+    </div>
+  </header>
+
+  <main id="main-content">
+    <section class="boundary" aria-labelledby="boundary-title">
+      <div class="boundary-mark" aria-hidden="true">!</div>
+      <div>
+        <h2 id="boundary-title">最初にお伝えする重要事項</h2>
+        <p><strong>本資料は第三者監査を代替しません。</strong>ai-auditによる確認は、個人開発者による納品前技術監査です。認証、法定検査、第三者保証、脆弱性ゼロ、安全性保証を意味しません。必要な案件では、納品先が選定するセキュリティ担当または第三者機関による独立監査へ引き継ぎます。</p>
+      </div>
+    </section>
+
+    <section class="section" id="purpose">
+      <div class="section-heading">
+        <p class="kicker">01｜提案の目的</p>
+        <h2>速さだけでなく、説明責任まで納品する</h2>
+        <p>企業案件では「動くこと」に加え、誰が・何を・どこまで確認したか、未確認のリスクを誰が判断するかが重要です。本方式は、その判断材料を納品工程の中で整えます。</p>
+      </div>
+      <div class="value-grid">
+        <article class="value-card">
+          <span class="card-number">01</span>
+          <h3>品質確認を工程化</h3>
+          <p>担当者の経験や口頭説明だけに頼らず、要求ID、試験、実測結果、証拠、判定を対応付けます。</p>
+        </article>
+        <article class="value-card">
+          <span class="card-number">02</span>
+          <h3>見えない範囲を開示</h3>
+          <p>実機、本番環境、外部サービスなど、確認できなかった領域を未検証台帳に残します。</p>
+        </article>
+        <article class="value-card">
+          <span class="card-number">03</span>
+          <h3>専門担当へつなぐ</h3>
+          <p>監査対象、既知の指摘、再現手順、残余リスクを整理し、第三者監査の開始点を作ります。</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="section roles-section" id="roles">
+      <div class="section-heading">
+        <p class="kicker">02｜責任の分け方</p>
+        <h2>三者の役割を混同しない</h2>
+        <p>独立性と最終判断の所在を明確にするため、開発者、納品先、第三者機関の責任を分けます。</p>
+      </div>
+      <div class="role-grid">
+        <article class="role-card developer">
+          <p class="role-label">開発・納品側</p>
+          <h3>個人開発者による納品前技術監査</h3>
+          <ul>
+            <li>要件・禁止事項・受入条件の整理</li>
+            <li>セキュア実装、テスト、静的検査</li>
+            <li>別系統レビューによる指摘抽出</li>
+            <li>修正、全体再検証、成果物作成</li>
+            <li>未検証事項と利用条件の説明</li>
+          </ul>
+        </article>
+        <article class="role-card client">
+          <p class="role-label">発注・受入側</p>
+          <h3>納品先による受入判断</h3>
+          <ul>
+            <li>業務要件、社内基準、禁止事項の提示</li>
+            <li>監査範囲と合否条件の承認</li>
+            <li>本番環境、端末、アカウントの管理</li>
+            <li>未検証・残余リスクの受容判断</li>
+            <li>第三者監査の要否と機関の選定</li>
+          </ul>
+        </article>
+        <article class="role-card third-party">
+          <p class="role-label">独立検証側</p>
+          <h3>第三者機関による独立監査</h3>
+          <ul>
+            <li>専門家による独立した評価</li>
+            <li>侵入診断、構成・権限レビュー</li>
+            <li>案件固有の法令・規格の確認</li>
+            <li>本番相当環境や実機での検証</li>
+            <li>指摘報告と再診断結果の発行</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section class="section" id="flow">
+      <div class="section-heading">
+        <p class="kicker">03｜実施フロー</p>
+        <h2>提案から第三者監査後の再納品まで</h2>
+        <p>監査は納品直前だけの作業ではありません。要件合意から証拠を積み上げ、外部監査の指摘対応まで追跡します。</p>
+      </div>
+      <ol class="process" aria-label="監査付き納品の8工程">
+        <li>
+          <span class="step">1</span>
+          <div><h3>提案・見積もり</h3><p>対象機能、扱うデータ、外部接続、必要な成果物、対象外、第三者監査の扱いを見積書へ記載します。</p></div>
+          <span class="owner">共同</span>
+        </li>
+        <li>
+          <span class="step">2</span>
+          <div><h3>要求・監査範囲の合意</h3><p>業務要件、セキュリティ要件、禁止事項、合否条件、利用環境、未提供資料の扱いを要求IDで固定します。</p></div>
+          <span class="owner">共同</span>
+        </li>
+        <li>
+          <span class="step">3</span>
+          <div><h3>安全を考慮した設計・開発</h3><p>最小権限、入力検証、秘密情報管理、通信保護、ログ、エラー処理、依存関係を確認しながら実装・試験します。</p></div>
+          <span class="owner developer-owner">開発者</span>
+        </li>
+        <li>
+          <span class="step">4</span>
+          <div><h3>納品前技術監査</h3><p>対象コミットを固定し、読み取り専用監査で仕様適合、情報保護、依存脆弱性、モバイル要件、運用・保守性を評価します。</p></div>
+          <span class="owner developer-owner">開発者</span>
+        </li>
+        <li>
+          <span class="step">5</span>
+          <div><h3>修正・全体再検証</h3><p>指摘ごとに対応方針を承認し、修正後は局所確認だけでなく関連領域と全テストを再実行します。</p></div>
+          <span class="owner developer-owner">開発者</span>
+        </li>
+        <li>
+          <span class="step">6</span>
+          <div><h3>成果物の封印・納品説明</h3><p>ソース、報告書、要求マトリクス、未検証台帳を関連付け、変更検知できる封印と再実行手順を添えて説明します。</p></div>
+          <span class="owner">共同</span>
+        </li>
+        <li>
+          <span class="step">7</span>
+          <div><h3>納品先セキュリティレビュー</h3><p>社内基準との適合、残余リスク、追加試験の要否を確認し、受入・条件付き受入・差戻しを納品先が判断します。</p></div>
+          <span class="owner client-owner">納品先</span>
+        </li>
+        <li>
+          <span class="step">8</span>
+          <div><h3>第三者監査・指摘対応・再納品</h3><p>引継ぎパックを第三者機関へ提出します。新たな指摘は開発者が修正・再検証し、必要に応じて再診断後、更新版を納品します。</p></div>
+          <span class="owner third-owner">第三者</span>
+        </li>
+      </ol>
+    </section>
+
+    <section class="section deliverables" id="deliverables">
+      <div class="section-heading light">
+        <p class="kicker">04｜納品する証拠</p>
+        <h2>「確認しました」を、追跡できる資料へ</h2>
+        <p>案件のリスクと契約範囲に応じ、次の標準成果物を更新して提出します。</p>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>成果物</th><th>企業側で確認できること</th><th>第三者監査での用途</th></tr></thead>
+          <tbody>
+            <tr><td><code>quality-profile.json</code></td><td>対象、参照基準・版、適用レベル、技術評価の前提</td><td>監査方針と適用基準の確認</td></tr>
+            <tr><td><code>requirements-matrix.csv</code></td><td>要求、試験、証拠、判定、制限、責任者の対応</td><td>サンプリングと追加検証範囲の選定</td></tr>
+            <tr><td><code>audit-report.md</code></td><td>経営要約、重要指摘、修正状態、残余リスク</td><td>既知の論点と利用条件の把握</td></tr>
+            <tr><td><code>audit-workpaper.md</code></td><td>環境、再実行コマンド、マスキング済み証拠</td><td>手順の再現と結果の照合</td></tr>
+            <tr><td><code>unverified-ledger.md</code></td><td>未実施の検査、理由、影響、追加対応</td><td>診断スコープ・見積もりの入力</td></tr>
+            <tr><td><code>seal.json</code></td><td>監査後にソースや成果物が変わっていないか</td><td>受領対象と監査対象の同一性確認</td></tr>
+            <tr><td>署名付き承認記録</td><td>誰が、何を確認し、どの条件で承認したか</td><td>意思決定と責任境界の確認</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="caption">秘密値、個人情報、顧客の非公開情報は成果物へ直接記録せず、必要な証拠はマスキングまたは顧客管理環境内で保管します。</p>
+    </section>
+
+    <section class="section" id="handoff">
+      <div class="section-heading">
+        <p class="kicker">05｜専門機関への接続</p>
+        <h2>第三者監査への引継ぎパック</h2>
+        <p>第三者機関が最初から情報を集め直さず、独立検証に集中できるよう、次の情報を一式にします。</p>
+      </div>
+      <div class="handoff-grid">
+        <div class="handoff-list">
+          <div><span>01</span><p><strong>対象の同一性</strong>リポジトリ、コミット、ビルド、依存版、成果物ハッシュ</p></div>
+          <div><span>02</span><p><strong>要求と判断基準</strong>業務要件、セキュリティ要件、禁止事項、適用基準・版</p></div>
+          <div><span>03</span><p><strong>既知の指摘</strong>重要度、影響、修正内容、再試験結果、未解決理由</p></div>
+          <div><span>04</span><p><strong>未検証領域</strong>実機、本番相当環境、外部連携、権限、運用面の未確認事項</p></div>
+          <div><span>05</span><p><strong>再現情報</strong>テスト環境、実行コマンド、期待値、マスキング済みログ</p></div>
+          <div><span>06</span><p><strong>連絡・是正ルート</strong>質問窓口、指摘の受領形式、修正期限、再診断条件</p></div>
+        </div>
+        <aside class="handoff-loop">
+          <p class="loop-title">第三者監査後も閉ループで管理</p>
+          <ol>
+            <li><span>指摘受領</span><small>影響と再現条件を確認</small></li>
+            <li><span>是正判断</span><small>修正・受容・対象外を承認</small></li>
+            <li><span>修正と再検証</span><small>関連テストも再実行</small></li>
+            <li><span>再診断</span><small>必要範囲を第三者が確認</small></li>
+            <li><span>更新版納品</span><small>報告書と封印を更新</small></li>
+          </ol>
+        </aside>
+      </div>
+    </section>
+
+    <section class="section" id="scope">
+      <div class="section-heading">
+        <p class="kicker">06｜契約上の境界</p>
+        <h2>標準工程と、別途合意が必要な作業</h2>
+        <p>責任と費用を曖昧にしないため、提案・見積もり時に以下を分けます。</p>
+      </div>
+      <div class="scope-grid">
+        <article>
+          <p class="scope-label included">標準の納品工程に含める例</p>
+          <ul class="check-list dark">
+            <li>合意済み要求への適合確認</li>
+            <li>ソース・設定・依存関係の機械検査</li>
+            <li>テスト実行と証拠整理</li>
+            <li>指摘修正と全体再検証</li>
+            <li>標準監査成果物と説明会</li>
+          </ul>
+        </article>
+        <article>
+          <p class="scope-label separate">別途見積もり・承認が必要な例</p>
+          <ul>
+            <li>第三者機関の選定、契約、診断費用</li>
+            <li>本番環境への侵入試験・負荷試験</li>
+            <li>法務判断、認証取得、法定検査</li>
+            <li>医療・金融・制御等の専門規格評価</li>
+            <li>監査後の仕様変更と再監査</li>
+          </ul>
+        </article>
+      </div>
+      <div class="note">
+        <strong>費用と責任の原則</strong>
+        <p>第三者機関は原則として納品先が選定・契約し、その費用負担、監査範囲、再診断回数を見積書または契約書で合意します。開発者が手配を代行する場合も、独立性と責任範囲を明記します。</p>
+      </div>
+    </section>
+
+    <section class="section talk-track" id="talk-track">
+      <div class="section-heading light">
+        <p class="kicker">07｜営業でそのまま使う</p>
+        <h2>提案書に使える説明文</h2>
+      </div>
+      <div class="script-card">
+        <p class="script-label">30秒で説明する場合</p>
+        <blockquote>本案件では、機能を実装して終わりではなく、要求事項とテスト・証拠を対応付けた納品前技術監査を行います。指摘は修正後に全体を再検証し、未検証事項も開示します。納品先のセキュリティ担当や第三者機関が確認を続けられる資料一式を、ソースとともに納品します。</blockquote>
+      </div>
+      <div class="script-card">
+        <p class="script-label">提案書・見積書へ記載する場合</p>
+        <blockquote>開発工程にセキュリティ対策と限定範囲の技術監査を組み込み、対象コード、参照基準、要求ごとの試験、証拠、指摘対応、未検証事項、残余リスクを記録します。納品時には監査成果物と再実行手順を提出し、必要に応じて、お客様が選定する第三者機関による独立監査へ引き継げる状態を整えます。本工程は第三者保証、認証、法定検査、安全性保証を代替するものではありません。</blockquote>
+      </div>
+      <div class="script-card">
+        <p class="script-label">セキュリティ担当へ説明する場合</p>
+        <blockquote>監査対象をコミットとハッシュで固定し、要求ID単位で適用性、試験方法、期待値、実測値、証拠、判定、制限を追跡します。未実施試験は未検証台帳に残し、第三者監査の追加スコープとして利用できます。監査後の変更は封印照合で検知し、再監査の要否を判断します。</blockquote>
+      </div>
+    </section>
+
+    <section class="section" id="meeting">
+      <div class="section-heading">
+        <p class="kicker">08｜商談の進め方</p>
+        <h2>営業時の説明順</h2>
+        <p>技術機能を並べる前に、相手の判断と引継ぎがどう楽になるかを説明します。</p>
+      </div>
+      <div class="meeting-grid">
+        <ol class="number-list">
+          <li><span>1</span><div><strong>相手の品質要件を聞く</strong><p>社内基準、扱う情報、利用環境、受入担当者を確認します。</p></div></li>
+          <li><span>2</span><div><strong>工程と責任分界を示す</strong><p>三者の役割と、開発者監査が第三者監査ではないことを説明します。</p></div></li>
+          <li><span>3</span><div><strong>成果物の見本を見せる</strong><p>要求マトリクス、報告書、未検証台帳、封印の読み方を紹介します。</p></div></li>
+          <li><span>4</span><div><strong>外部監査の要否を合意する</strong><p>必要な専門性、発注主体、費用、時期、是正対応を決めます。</p></div></li>
+          <li><span>5</span><div><strong>見積書へ境界を書く</strong><p>対象・対象外、承認者、再監査条件、納品物を契約前に固定します。</p></div></li>
+        </ol>
+        <aside class="questions">
+          <h3>初回商談で確認する5項目</h3>
+          <ul>
+            <li>アプリが扱う個人情報・機密情報</li>
+            <li>決済、認証、位置情報、外部送信の有無</li>
+            <li>納品先のセキュリティ・品質基準</li>
+            <li>受入レビューを行う部署と責任者</li>
+            <li>第三者診断・認証・法令対応の必要性</li>
+          </ul>
+        </aside>
+      </div>
+    </section>
+
+    <section class="section" id="faq">
+      <div class="section-heading">
+        <p class="kicker">09｜よくある質問</p>
+        <h2>営業先から聞かれやすいこと</h2>
+      </div>
+      <div class="faq-list">
+        <details open><summary>この監査だけで安全だと言えますか？</summary><p>いいえ。合意した範囲で技術的に確認できたことを証拠付きで示します。未検証事項と残余リスクを開示し、最終的な受入判断は納品先が行います。</p></details>
+        <details><summary>第三者機関の監査は必ず必要ですか？</summary><p>案件のリスク、社内規程、法令、取引条件によります。個人情報、決済、重要業務、高い権限、本番公開を含む場合は、早い段階で納品先のセキュリティ担当へ相談します。</p></details>
+        <details><summary>第三者監査で新しい指摘が出た場合は？</summary><p>指摘を要求IDまたは指摘IDで受領し、影響確認、修正方針の承認、修正、関連領域の再検証、報告書更新を行います。必要な場合は第三者機関の再診断を受けます。</p></details>
+        <details><summary>監査後に機能を変更できますか？</summary><p>変更できますが、封印照合が失敗し、以前の監査結論はそのまま使えません。差分の影響を確認し、必要な範囲を再監査します。</p></details>
+        <details><summary>監査資料に顧客情報は残りますか？</summary><p>公開資料には残しません。実案件でも秘密値や個人情報を直接保存せず、マスキング、架空データ、顧客管理環境内での証拠保管を使い分けます。</p></details>
+      </div>
+    </section>
+
+    <section class="final-cta" id="next-step">
+      <p class="kicker">次のステップ</p>
+      <h2>見積もり前に、品質要件と監査範囲を整理します</h2>
+      <p>対象機能、利用者、扱う情報、外部接続、納品先の社内基準、第三者監査の要否を確認し、監査工程・成果物・対象外を提案書へ明記します。</p>
+      <div class="hero-actions no-print">
+        <a class="button primary" href="freelance-playbook.html">受託活用ガイドを読む</a>
+        <a class="button dark-button" href="https://github.com/goonobu-dot/ai-audit-skill">仕組みをGitHubで確認</a>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div><strong>ai-audit</strong><span>セキュリティ・監査付き納品のご説明</span></div>
+    <p>v1.2 Preview｜公知標準を参照した限定範囲の技術的検証です。認証・第三者保証・安全保証ではありません。</p>
+  </footer>
+</body>
+</html>

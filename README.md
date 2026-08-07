@@ -10,7 +10,7 @@ AIで作ったアプリや業務システムについて、**何を基準に、�
 
 > English: Evidence-backed technical audit workflow for AI-built software. It maps versioned requirements to tests, evidence, findings, limitations, and release approvals.
 
-**[詳しい日本語マニュアル](https://goonobu-dot.github.io/ai-audit-skill/)** · **[5分で始める](https://goonobu-dot.github.io/ai-audit-skill/getting-started.html)** · **[副業・受託での使い方](https://goonobu-dot.github.io/ai-audit-skill/freelance-playbook.html)** · **[監査内容の詳しい備考](https://goonobu-dot.github.io/ai-audit-skill/audit-notes.html)**
+**[詳しい日本語マニュアル](https://goonobu-dot.github.io/ai-audit-skill/)** · **[企業向け営業説明資料](https://goonobu-dot.github.io/ai-audit-skill/client-security-assurance.html)** · **[5分で始める](https://goonobu-dot.github.io/ai-audit-skill/getting-started.html)** · **[副業・受託での使い方](https://goonobu-dot.github.io/ai-audit-skill/freelance-playbook.html)** · **[監査内容の詳しい備考](https://goonobu-dot.github.io/ai-audit-skill/audit-notes.html)**
 
 役に立った場合は、リポジトリ右上の **Star** で応援してください。実際の案件で不足した検査や分かりにくい点は、個人情報・顧客情報・秘密情報を除いて[Issue](https://github.com/goonobu-dot/ai-audit-skill/issues)へ共有してください。
 
@@ -115,12 +115,15 @@ cp -R skills/code-atlas ~/.agents/skills/
 
 営業文例、案件メニュー、見積もり条件、禁止表現は[副業・受託活用ガイド](https://goonobu-dot.github.io/ai-audit-skill/freelance-playbook.html)にあります。
 
+営業先へそのまま提示できる説明、責任分界、納品物、第三者機関への引継ぎフローは[企業向け「セキュリティ・監査付き納品」の説明資料](https://goonobu-dot.github.io/ai-audit-skill/client-security-assurance.html)にまとめています。ブラウザから印刷・PDF保存できます。
+
 ## ドキュメント
 
 - [Web版・詳細マニュアル](https://goonobu-dot.github.io/ai-audit-skill/)
 - [5分で始める・実案件の進め方](https://goonobu-dot.github.io/ai-audit-skill/getting-started.html)
 - [監査内容の詳しい備考](https://goonobu-dot.github.io/ai-audit-skill/audit-notes.html)
 - [副業・受託開発での活用](https://goonobu-dot.github.io/ai-audit-skill/freelance-playbook.html)
+- [企業向け「セキュリティ・監査付き納品」の説明資料](https://goonobu-dot.github.io/ai-audit-skill/client-security-assurance.html)
 - [公開前プライバシーチェック](https://goonobu-dot.github.io/ai-audit-skill/privacy-checklist.html)
 - [GitHubで利用者とStarを増やす運用](https://goonobu-dot.github.io/ai-audit-skill/github-growth-guide.html)
 - [品質プロファイル仕様](skills/ai-audit/references/quality-profile.md)
