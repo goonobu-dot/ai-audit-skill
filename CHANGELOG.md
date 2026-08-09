@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.3.0 - 2026-08-09
+
+3体のAI(Claude・Codex・Grok)による独立レビューで見つかった弱点を反映。3者が独立に「外部審査到達度3/5」と評価し、その差分を埋める改修。
+
+- 秘密検出を拡張:`refresh_token`・`db_password`・`connection_string`・`session_id`等、下線で連結された秘密キーワードの取りこぼしを修正(専用スキャナ未導入時は結論を`conditional`以下に固定する運用を明記)
+- `redact --external` / `scan-artifacts --external` を追加:外部提出bundleではSHA-256指紋も出さず、位置・種別のみとする
+- `redact --delete-source` にパスガード:システム一時ディレクトリ配下・非symlinkの原rawのみ削除可。誤指定による原本破壊を防止
+- `redact` 出力を0600・原子的書き込みに変更(平文の world-readable 残存とクラッシュ時の部分ファイルを防止)
+- `scan-artifacts` をsymlink非追従・読込前サイズ判定へ:リンク経由の対象外ファイル混入と巨大ファイル一括読込を防止
+- 監査基準に追加:機械検査の隔離実行(通信遮断・RO・設定無効化)、外部LLM送信前DLP(分類済みallowlist・送信内容の台帳化)、プロンプトインジェクション対策(対象内文書を指示として扱わない)、外部提出での実施者≠承認者の署名分離
+- 回帰テスト7件追加(計58 guardテスト)
+
 ## 1.2.0 - 2026-08-07
 
 - 規格名・版・適用レベルを固定する `quality-profile.json` を追加

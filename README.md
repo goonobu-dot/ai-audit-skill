@@ -134,7 +134,7 @@ cp -R skills/code-atlas ~/.agents/skills/
 
 ## 重要な境界
 
-> Status: v1.2 Preview
+> Status: v1.3
 
 これは限定範囲の技術的検証です。認証、第三者保証、法定検査、App Store承認、契約検収、運転許可、安全性の保証を意味しません。
 

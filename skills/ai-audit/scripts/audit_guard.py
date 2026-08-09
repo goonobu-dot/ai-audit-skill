@@ -7,9 +7,11 @@ import argparse
 import csv
 import hashlib
 import json
+import os
 import re
 import subprocess
 import sys
+import tempfile
 from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Iterable
@@ -158,15 +160,24 @@ TOKEN_PATTERNS = (
     re.compile(r"\b(?=[A-Za-z0-9_-]{32,}\b)(?=[A-Za-z0-9_-]*[a-z])(?=[A-Za-z0-9_-]*[A-Z])(?=[A-Za-z0-9_-]*[0-9])[A-Za-z0-9_-]{32,}\b"),
 )
 BEARER_PATTERN = re.compile(r"(?i)\bBearer\s+[A-Za-z0-9._~+/=-]+")
+# Keyword fragment shared by the assignment and YAML detectors so the two never
+# drift apart. Underscore-joined variants (refresh_token, db_password, session_id)
+# are listed explicitly because a plain `\btoken\b`/`\bpassword\b` never matches
+# across an internal underscore (3-AI review 2026-08: Codex/Grok finding).
+SECRET_KEYWORDS = (
+    r"api[_-]?key|access[_-]?token|refresh[_-]?token|id[_-]?token|"
+    r"session[_-]?(?:id|key|token|secret)|auth(?:orization)?|client[_-]?secret|"
+    r"connection[_-]?string|conn[_-]?str|credential|jwt|passphrase|"
+    r"(?:db[_-]?)?password|passwd|pin|otp|private[_-]?key|recovery[_-]?code|"
+    r"secret|token"
+)
 ASSIGNMENT_PATTERN = re.compile(
-    r"(?i)([\"']?\b(?:api[_-]?key|access[_-]?token|auth(?:orization)?|client[_-]?secret|"
-    r"credential|jwt|password|passwd|pin|private[_-]?key|recovery[_-]?code|secret|token)\b[\"']?\s*[:=]\s*)"
+    r"(?i)([\"']?\b(?:" + SECRET_KEYWORDS + r")\b[\"']?\s*[:=]\s*)"
     r'(?:"((?:\\.|[^"\\])*)"|\'((?:\\.|[^\'\\])*)\'|([^\s,}\]]+))'
 )
 YAML_SECRET_BLOCK_HEADER = re.compile(
-    r"^(?P<indent>[ \t]*)(?P<prefix>[\"']?(?:api[_-]?key|access[_-]?token|auth(?:orization)?|"
-    r"client[_-]?secret|credential|jwt|password|passwd|pin|private[_-]?key|"
-    r"recovery[_-]?code|secret|token)[\"']?[ \t]*:)[ \t]*[|>][-+0-9]*[ \t]*(?:#.*)?$",
+    r"^(?P<indent>[ \t]*)(?P<prefix>[\"']?(?:" + SECRET_KEYWORDS + r")[\"']?[ \t]*:)"
+    r"[ \t]*[|>][-+0-9]*[ \t]*(?:#.*)?$",
     re.IGNORECASE,
 )
 PRIVATE_KEY_PATTERN = re.compile(
@@ -190,8 +201,14 @@ def _replacement(secret: str, include_fingerprint: bool = True) -> str:
     return f"[REDACTED:sha256:{_fingerprint(secret)}]"
 
 
-def redact_text(text: str) -> str:
-    """Mask common secrets; fingerprint only unassigned high-entropy tokens."""
+def redact_text(text: str, external: bool = False) -> str:
+    """Mask common secrets; fingerprint only unassigned high-entropy tokens.
+
+    With ``external=True`` no SHA-256 fingerprint is emitted at all (position and
+    kind only), because a fingerprint of a low-entropy or partially known value can
+    still be used for offline confirmation once a package leaves the audit boundary
+    (3-AI review 2026-08: Grok finding).
+    """
     lines = text.splitlines(keepends=True)
     redacted_lines: list[str] = []
     index = 0
@@ -235,7 +252,9 @@ def redact_text(text: str) -> str:
 
     text = ASSIGNMENT_PATTERN.sub(redact_assignment, text)
     for pattern in TOKEN_PATTERNS:
-        text = pattern.sub(lambda match: _replacement(match.group(0)), text)
+        text = pattern.sub(
+            lambda match: _replacement(match.group(0), include_fingerprint=not external), text
+        )
     return text
 
 
@@ -373,20 +392,31 @@ def _contains_raw_secret(text: str) -> bool:
     return any(pattern.search(text) for pattern in TOKEN_PATTERNS)
 
 
-def scan_artifacts(artifact_root: Path | str) -> list[str]:
-    """Fail closed when a publication tree cannot be fully text-scanned."""
+def scan_artifacts(artifact_root: Path | str, external: bool = False) -> list[str]:
+    """Fail closed when a publication tree cannot be fully text-scanned.
+
+    Symlinks are never followed: a symlink anywhere in the tree is reported and
+    neither read nor descended into, so a link cannot smuggle an out-of-tree file
+    past the scan or make it follow into arbitrary locations. File size is checked
+    with ``lstat`` before any bytes are read (3-AI review 2026-08: Codex finding).
+    With ``external=True`` any surviving SHA-256 fingerprint is also a finding, so
+    externally shared bundles carry position and kind only (Grok finding).
+    """
     root = Path(artifact_root).resolve()
-    if not root.is_dir():
+    if not root.is_dir() or root.is_symlink():
         return [f"artifact directory is missing: {root}"]
     errors: list[str] = []
     for path in root.rglob("*"):
+        relative = path.relative_to(root)
+        if path.is_symlink():
+            errors.append(f"symlink in publication tree requires separate review: {relative}")
+            continue
         if not path.is_file():
             continue
-        relative = path.relative_to(root)
-        raw = path.read_bytes()
-        if len(raw) > 10 * 1024 * 1024:
+        if path.stat().st_size > 10 * 1024 * 1024:
             errors.append(f"artifact exceeds scan limit: {relative}")
             continue
+        raw = path.read_bytes()
         try:
             text = raw.decode("utf-8")
         except UnicodeDecodeError:
@@ -396,6 +426,8 @@ def scan_artifacts(artifact_root: Path | str) -> list[str]:
             continue
         if _contains_raw_secret(text) or redact_text(text) != text:
             errors.append(f"raw secret-like value: {relative}")
+        if external and "[REDACTED:sha256:" in text:
+            errors.append(f"secret fingerprint not allowed in external bundle: {relative}")
         if any(marker in text for marker in ("監査実施環境のセッション記録に保存", "/Users/", "/private/tmp/")):
             errors.append(f"non-public evidence reference: {relative}")
     return errors
@@ -1328,7 +1360,13 @@ def _build_parser() -> argparse.ArgumentParser:
     redact.add_argument(
         "--delete-source",
         action="store_true",
-        help="delete the raw input only after --output is written successfully",
+        help="delete the raw input only after --output is written successfully; "
+        "the raw input must live under the system temp directory and must not be a symlink",
+    )
+    redact.add_argument(
+        "--external",
+        action="store_true",
+        help="emit no SHA-256 fingerprints (position and kind only) for externally shared bundles",
     )
     create = subparsers.add_parser("create-seal", help="create a v2 source seal")
     create.add_argument("repo", type=Path)
@@ -1362,6 +1400,11 @@ def _build_parser() -> argparse.ArgumentParser:
     release.add_argument("allowed_signers", type=Path)
     scan = subparsers.add_parser("scan-artifacts", help="scan every publication artifact")
     scan.add_argument("root", type=Path)
+    scan.add_argument(
+        "--external",
+        action="store_true",
+        help="also reject SHA-256 fingerprints so an externally shared bundle carries kind and position only",
+    )
     return parser
 
 
@@ -1374,11 +1417,40 @@ def main(argv: list[str] | None = None) -> int:
         if args.path is not None and args.output is not None and args.path.resolve() == args.output.resolve():
             print("input path and --output must be different", file=sys.stderr)
             return 2
+        if args.delete_source:
+            # Path guard: only ever delete a raw capture that lives under the system
+            # temp directory and is a real file, never a symlink. This makes it
+            # impossible to point --delete-source at an original source tree file or
+            # at a link that resolves into one (3-AI review 2026-08: Grok/Codex).
+            if args.path.is_symlink():
+                print("--delete-source refuses a symlink input", file=sys.stderr)
+                return 2
+            temp_root = Path(tempfile.gettempdir()).resolve()
+            try:
+                args.path.resolve().relative_to(temp_root)
+            except ValueError:
+                print(
+                    "--delete-source only deletes a raw file staged under the system "
+                    f"temp directory ({temp_root}); move the capture there first",
+                    file=sys.stderr,
+                )
+                return 2
         raw = args.path.read_text(encoding="utf-8") if args.path else sys.stdin.read()
-        redacted = redact_text(raw)
+        redacted = redact_text(raw, external=args.external)
         if args.output:
             args.output.parent.mkdir(parents=True, exist_ok=True)
-            args.output.write_text(redacted, encoding="utf-8")
+            # Atomic write with owner-only permissions so a redacted capture never
+            # exists on disk world-readable and a crash never leaves a partial file
+            # (3-AI review 2026-08: Codex finding).
+            fd, tmp_name = tempfile.mkstemp(
+                dir=str(args.output.parent), prefix=".redact-", suffix=".tmp"
+            )
+            try:
+                os.write(fd, redacted.encode("utf-8"))
+            finally:
+                os.close(fd)
+            os.chmod(tmp_name, 0o600)
+            os.replace(tmp_name, args.output)
             if args.delete_source:
                 args.path.unlink()
         else:
@@ -1394,7 +1466,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "verify-seal":
         errors = verify_seal(args.repo, args.seal)
     elif args.command == "scan-artifacts":
-        errors = scan_artifacts(args.root)
+        errors = scan_artifacts(args.root, external=args.external)
     elif args.command == "validate-quality":
         errors = validate_quality_package(args.profile, args.matrix, args.audit_root)
     elif args.command == "validate-report":
