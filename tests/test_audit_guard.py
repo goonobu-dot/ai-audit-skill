@@ -7,6 +7,7 @@ import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -110,6 +111,102 @@ class AuditGuardTests(unittest.TestCase):
 
         self.assertEqual(2, result)
         self.assertTrue(raw_path.exists())
+
+    def test_redact_masks_underscore_joined_secret_keywords(self):
+        from scripts.audit_guard import redact_text
+
+        raw = (
+            "refresh_token=rt-abcdefghijklmnopqrstuvwxyz\n"
+            "db_password=Sup3rSecretValue!\n"
+            'connection_string="Server=db;Password=hunter2;"\n'
+            "session_id=aabbccddeeff00112233\n"
+        )
+        redacted = redact_text(raw)
+        self.assertNotIn("rt-abcdefghijklmnopqrstuvwxyz", redacted)
+        self.assertNotIn("Sup3rSecretValue!", redacted)
+        self.assertNotIn("hunter2", redacted)
+        self.assertNotIn("aabbccddeeff00112233", redacted)
+        self.assertIn("refresh_token=[REDACTED]", redacted)
+        self.assertIn("db_password=[REDACTED]", redacted)
+
+    def test_redact_external_mode_emits_no_fingerprint(self):
+        from scripts.audit_guard import redact_text
+
+        raw = "opaque=opaqueVendorToken0123456789abcdefABCDEF\n"
+        internal = redact_text(raw)
+        external = redact_text(raw, external=True)
+        self.assertIn("[REDACTED:sha256:", internal)
+        self.assertNotIn("sha256:", external)
+        self.assertIn("[REDACTED]", external)
+
+    def test_redact_cli_refuses_delete_source_outside_temp_dir(self):
+        import scripts.audit_guard as shim
+
+        raw_path = self.repo / "audit" / "raw.yaml"
+        safe_path = self.repo / "audit" / "safe.yaml"
+        raw_path.write_text("password: hunter2\n", encoding="utf-8")
+
+        with mock.patch.object(shim.MODULE.tempfile, "gettempdir", return_value="/nonexistent-temp-root"):
+            result = shim.main(["redact", str(raw_path), "--output", str(safe_path), "--delete-source"])
+
+        self.assertEqual(2, result)
+        self.assertTrue(raw_path.exists())
+
+    def test_redact_cli_refuses_symlink_source_for_delete(self):
+        from scripts.audit_guard import main
+
+        real_path = self.repo / "audit" / "real.yaml"
+        real_path.write_text("password: keepme\n", encoding="utf-8")
+        link_path = self.repo / "audit" / "link.yaml"
+        link_path.symlink_to(real_path)
+        safe_path = self.repo / "audit" / "safe.yaml"
+
+        result = main(["redact", str(link_path), "--output", str(safe_path), "--delete-source"])
+
+        self.assertEqual(2, result)
+        self.assertTrue(real_path.exists())
+        self.assertTrue(link_path.exists())
+
+    def test_redact_output_file_is_owner_only(self):
+        import stat
+        from scripts.audit_guard import main
+
+        raw_path = self.repo / "audit" / "raw.txt"
+        safe_path = self.repo / "audit" / "safe.txt"
+        raw_path.write_text("token=abc\n", encoding="utf-8")
+
+        result = main(["redact", str(raw_path), "--output", str(safe_path)])
+
+        self.assertEqual(0, result)
+        mode = stat.S_IMODE(safe_path.stat().st_mode)
+        self.assertEqual(0, mode & (stat.S_IRWXG | stat.S_IRWXO))
+
+    def test_scan_artifacts_flags_symlink_in_tree(self):
+        from scripts.audit_guard import scan_artifacts
+
+        outside = self.repo / "outside-secret.txt"
+        outside.write_text("nothing", encoding="utf-8")
+        art = self.repo / "pub"
+        art.mkdir()
+        (art / "report.md").write_text("clean report\n", encoding="utf-8")
+        (art / "link.txt").symlink_to(outside)
+
+        errors = scan_artifacts(art)
+
+        self.assertTrue(any("symlink in publication tree" in e for e in errors))
+
+    def test_scan_artifacts_external_mode_rejects_fingerprint(self):
+        from scripts.audit_guard import scan_artifacts
+
+        art = self.repo / "pub"
+        art.mkdir()
+        (art / "workpaper.md").write_text("value: [REDACTED:sha256:0123456789ab]\n", encoding="utf-8")
+
+        internal = scan_artifacts(art)
+        external = scan_artifacts(art, external=True)
+
+        self.assertEqual([], internal)
+        self.assertTrue(any("fingerprint not allowed in external bundle" in e for e in external))
 
     def test_seal_verifies_all_non_audit_tracked_files(self):
         from scripts.audit_guard import create_seal, verify_seal

@@ -1,0 +1,21 @@
+# gitleaks configuration for ai-audit.
+#
+# The repository intentionally contains fake secret literals in two places:
+#   1. tests/                — vectors that prove the redactor masks real secrets
+#   2. examples/memo-tool/   — a worked audit whose evidence is fully masked
+# These are not live credentials (e.g. the xkcd "CorrectHorseBatteryStaple"
+# example and a textbook JWT). They are allowlisted below so a clean gitleaks
+# run signals "no real secret", while genuine leaks elsewhere still fail.
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Intentional test/example fixtures and local build artifacts"
+paths = [
+  '''tests/.*''',
+  '''examples/memo-tool/tests/.*''',
+  '''examples/memo-tool/audit/.*''',
+  '''.*__pycache__.*''',
+  '''.*\.py[cod]''',
+]
