@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>急所の検証読み(critical-review):業務メモ整理ツール memo.py</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:-apple-system,"Hiragino Sans","Yu Gothic UI",sans-serif; color:#1a1a1c; background:#fff; font-size:16px; line-height:1.7; }
+  header { border-bottom:3px solid #0017c1; padding:20px 24px 16px; }
+  header h1 { font-size:20px; }
+  header .sub { color:#414143; font-size:13.5px; margin-top:3px; }
+  main { max-width:920px; margin:0 auto; padding:20px 24px 80px; }
+  .fixed { border:1px solid #d8d8db; border-radius:10px; background:#f8f8fb; padding:14px 16px; margin:16px 0; font-size:13.5px; }
+  .fixed h2 { font-size:14px; color:#0017c1; margin-bottom:8px; }
+  .fixed ul { margin:0 0 0 20px; } .fixed li { margin-bottom:3px; }
+  .verdict { display:flex; align-items:center; gap:14px; border-radius:10px; padding:16px 18px; margin:16px 0; }
+  .verdict.pending { background:#fdf6e3; border:2px solid #b8860b; }
+  .verdict.blocked { background:#fdf1f1; border:2px solid #ec0000; }
+  .verdict.ok { background:#eef7f1; border:2px solid #197a4b; }
+  .verdict .big { font-size:22px; font-weight:700; }
+  .verdict.pending .big { color:#8a6508; } .verdict.blocked .big { color:#a30000; } .verdict.ok .big { color:#197a4b; }
+  .verdict .desc { font-size:13.5px; color:#414143; }
+  .split { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin:16px 0; }
+  .panel { border:1px solid #d8d8db; border-radius:10px; padding:12px 14px; }
+  .panel h3 { font-size:13px; color:#414143; margin-bottom:6px; }
+  .panel .num { font-size:24px; font-weight:700; }
+  .coverage table { border-collapse:collapse; width:100%; font-size:12.5px; margin-top:14px; }
+  .coverage th,.coverage td { border:1px solid #d8d8db; padding:5px 8px; text-align:left; }
+  .coverage th { background:#f8f8fb; }
+  .tag { display:inline-block; font-size:11px; font-weight:600; border-radius:5px; padding:1px 7px; }
+  .tag.analyzed { background:#eef7f1; color:#197a4b; } .tag.none { background:#eef7f1; color:#197a4b; }
+  .tag.blind { background:#fdf1f1; color:#a30000; } .tag.todo { background:#fdf6e3; color:#8a6508; }
+  h2.section { font-size:17px; border-left:5px solid #0017c1; padding-left:10px; margin:26px 0 12px; }
+  .card { border:1px solid #d8d8db; border-radius:12px; margin:14px 0; overflow:hidden; }
+  .card.blindcard { border-color:#ec0000; }
+  .card > .head { padding:12px 16px; background:#f8f8fb; display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; }
+  .card.blindcard > .head { background:#fdf1f1; }
+  .card .cat { font-size:12px; color:#767678; }
+  .card .title { font-size:15px; font-weight:600; }
+  .state { font-size:12px; font-weight:700; border-radius:6px; padding:3px 10px; }
+  .state.unanswered { background:#eee; color:#555; } .state.allow { background:#eef7f1; color:#197a4b; }
+  .state.deny { background:#fdf1f1; color:#a30000; } .state.unknown { background:#fdf6e3; color:#8a6508; }
+  .card .body { padding:14px 16px; }
+  .grid { display:grid; grid-template-columns:auto 1fr; gap:4px 14px; font-size:13.5px; margin-bottom:10px; }
+  .grid dt { color:#767678; white-space:nowrap; } .grid dd { color:#1a1a1c; }
+  details { margin:8px 0; }
+  summary { cursor:pointer; font-family:ui-monospace,Menlo,monospace; font-size:12px; background:#eef1fb; color:#0017c1; border:1px solid #b7c2ee; border-radius:6px; padding:4px 10px; display:inline-block; }
+  .card.blindcard summary { background:#fdecea; color:#a30000; border-color:#f0a9a2; }
+  pre { font-family:ui-monospace,Menlo,monospace; font-size:12px; line-height:1.55; overflow-x:auto; background:#f2f2f5; border-radius:7px; padding:10px 12px; margin:8px 0; }
+  .q { font-size:13.5px; font-weight:600; margin:12px 0 8px; }
+  .choices { display:flex; gap:8px; flex-wrap:wrap; }
+  .choices button { font-size:13px; border:1px solid #d8d8db; border-radius:7px; padding:7px 14px; background:#fff; cursor:pointer; }
+  .choices button:disabled { opacity:.4; cursor:not-allowed; }
+  .choices button.allow.on { background:#197a4b; color:#fff; border-color:#197a4b; }
+  .choices button.deny.on { background:#ec0000; color:#fff; border-color:#ec0000; }
+  .choices button.unknown.on { background:#b8860b; color:#fff; border-color:#b8860b; }
+  .hint { font-size:12px; color:#a30000; margin-top:8px; }
+  footer { border-top:1px solid #d8d8db; margin-top:30px; padding:16px 24px; font-size:12px; color:#767678; }
+  code { font-family:ui-monospace,Menlo,monospace; background:#f2f2f5; border-radius:4px; padding:1px 5px; font-size:.9em; }
+</style>
+</head>
+<body>
+<header>
+  <h1>急所の検証読み — 業務メモ整理ツール memo.py</h1>
+  <div class="sub">全部を理解する資料ではありません。事故のほぼ全てが通る「急所」だけに、あなた自身の目を通して「許可/禁止/不明」を判断するための画面です。</div>
+</header>
+<main>
+
+<div class="fixed">
+  <h2>この画面の前提(バッジより先に必ず読む)</h2>
+  <ul>
+    <li>抽出方法:<strong>パターン検索(Grep)+AI分類のみ</strong>。AST/taint解析・実行時観測は<span class="tag todo">未実施</span>(将来強化)。つまりこれは<strong>候補であって網羅ではありません</strong>。</li>
+    <li>既知の盲点:<strong>ネイティブ呼び出し(ctypes/FFI)・eval・動的import・難読化・設定/CI経路</strong>は行を読んでも追えません。該当があれば下で<span class="tag blind">判定不能(赤)</span>として必ず出します。</li>
+    <li>未解析:<strong>0 件</strong>(対象は単一ファイル memo.py・依存は標準ライブラリのみ)。ただし上記の盲点は別問題です。</li>
+    <li>対象の同一性:commit <code>e85cc6c</code> / memo.py の SHA-256 先頭 <code>032bca39d55ef01c</code>。この画面は<strong>この版に対してのみ</strong>有効。コードが変わったら再生成が必要です(<code>verify-seal</code>は「変更がない証明」専用で、安全の証明ではありません)。</li>
+  </ul>
+</div>
+
+<div id="verdict" class="verdict blocked">
+  <div class="big" id="verdict-big">判定不能</div>
+  <div class="desc" id="verdict-desc">未回答の急所、または赤い「判定不能候補」が残っています。すべての急所にあなたの判断が記録され、盲点を理解するまで、この画面は「安全」を示しません。</div>
+</div>
+
+<div class="split">
+  <div class="panel"><h3>発見(found):要確認の急所</h3><div class="num" id="found-num">6</div><div style="font-size:12px;color:#767678">下のカードで1件ずつ許否を判断してください</div></div>
+  <div class="panel"><h3>あなたの回答</h3><div class="num"><span id="answered">0</span> / <span id="total">6</span></div><div style="font-size:12px;color:#767678">「不明」が残っている限り安全とは言えません</div></div>
+</div>
+
+<div class="coverage">
+  <table>
+    <tr><th>解析対象</th><th>状態</th><th>備考</th></tr>
+    <tr><td>memo.py(本体・190行)</td><td><span class="tag analyzed">解析済</span></td><td>全行をパターン走査</td></tr>
+    <tr><td>外部依存パッケージ</td><td><span class="tag none">なし</span></td><td>標準ライブラリのみ(os/ctypes/errno/stat/sys/time)</td></tr>
+    <tr><td>ネイティブ呼び出し(libc)</td><td><span class="tag blind">盲点</span></td><td>ctypes経由。行を読んでも実挙動は追えない → 急所#Aで開示</td></tr>
+    <tr><td>設定・環境・CI/デプロイ</td><td><span class="tag none">対象外</span></td><td>本サンプルにCI/デプロイ設定なし(実プロジェクトでは要解析)</td></tr>
+    <tr><td>AST/taint解析・実行時観測</td><td><span class="tag todo">未実施</span></td><td>第1版の範囲外。静的候補のみ</td></tr>
+  </table>
+</div>
+
+<h2 class="section">急所カード(1件ずつ、あなたが判断する)</h2>
+
+<!-- Blind spot card first: highest honesty priority -->
+<div class="card blindcard" data-card>
+  <div class="head">
+    <div><div class="cat">#A 供給網・盲点(カテゴリ6)</div><div class="title">ネイティブ呼び出し(ctypes → libc)= 行読みでは追えない</div></div>
+    <div class="state unanswered" data-state>未回答</div>
+  </div>
+  <div class="body">
+    <dl class="grid">
+      <dt>操作契機</dt><dd>ファイル移動(archive)のたびに、OSのC関数 <code>renameat2</code> / <code>renameatx_np</code> を直接呼ぶ</dd>
+      <dt>なぜ盲点か</dt><dd><code>ctypes.CDLL(None)</code> はOS標準ライブラリ(libc)を読み込み、任意のC関数を呼べる入口。<strong>Pythonの行を読んでも、その先で何が起きるかはこの画面では追えません</strong></dd>
+      <dt>この版での用途</dt><dd>「既存ファイルを上書きしない原子的な移動」に限定して使っている(下の根拠を参照)。ただし用途の正しさは根拠を読んで<strong>あなたが判断</strong>してください</dd>
+      <dt>取扱い</dt><dd>「検出済み・問題なし」とは書きません。<strong>判定不能候補</strong>として赤で開示します</dd>
+    </dl>
+    <details data-evi><summary>根拠を開く memo.py:81-96(開かないと回答できません)</summary>
+<pre>81  libc = ctypes.CDLL(None, use_errno=True)
+82  source = os.fsencode(source_name)
+83  destination = os.fsencode(destination_name)
+84  if hasattr(libc, "renameat2"):
+85      result = libc.renameat2(
+86          source_dir_fd, source, destination_dir_fd, destination, 1  # RENAME_NOREPLACE
+87      )
+88  elif hasattr(libc, "renameatx_np"):
+89      result = libc.renameatx_np(
+90          source_dir_fd, source, destination_dir_fd, destination, 4  # RENAME_EXCL
+91      )</pre></details>
+    <div class="q">この「OSのC関数を直接呼ぶ」動作を、あなたはこのツールに許可しますか?(盲点であることを理解した上で)</div>
+    <div class="choices">
+      <button class="allow" data-choice="allow" disabled>許可する</button>
+      <button class="deny" data-choice="deny" disabled>禁止/おかしい</button>
+      <button class="unknown" data-choice="unknown" disabled>不明</button>
+    </div>
+    <div class="hint" data-hint style="display:none">先に「根拠を開く」を押してコードを見てください</div>
+  </div>
+</div>
+
+<div class="card" data-card>
+  <div class="head">
+    <div><div class="cat">#1 外部への送信・出口(カテゴリ1)</div><div class="title">データが外部に出る場所はあるか</div></div>
+    <div class="state unanswered" data-state>未回答</div>
+  </div>
+  <div class="body">
+    <dl class="grid">
+      <dt>候補</dt><dd><strong>ゼロ</strong>。通信API(urllib/requests/socket/http/smtp)・外部ログ送信・テレメトリの該当行なし</dd>
+      <dt>データの出口</dt><dd>画面表示(print)とローカルの archive/ フォルダへの移動のみ</dd>
+      <dt>注意</dt><dd>「候補ゼロ」は「絶対に送信しない」ではありません。#Aの盲点(ネイティブ呼び出し)経由の可能性は理論上残ります</dd>
+    </dl>
+    <details data-evi><summary>根拠を開く:通信APIの不在(memo.py 全体のimport行)</summary>
+<pre>3  import os
+4  import ctypes
+5  import errno
+6  import stat
+7  import sys
+8  import time
+（urllib / requests / socket / http などの通信モジュールは import されていない）</pre></details>
+    <div class="q">「このツールはネットワーク送信をしない(#Aの盲点を除く)」を、仕様の意図として許可しますか?</div>
+    <div class="choices">
+      <button class="allow" data-choice="allow" disabled>許可する</button>
+      <button class="deny" data-choice="deny" disabled>禁止/おかしい</button>
+      <button class="unknown" data-choice="unknown" disabled>不明</button>
+    </div>
+    <div class="hint" data-hint style="display:none">先に「根拠を開く」を押してコードを見てください</div>
+  </div>
+</div>
+
+<div class="card" data-card>
+  <div class="head">
+    <div><div class="cat">#2 高影響な外部作用(カテゴリ2)</div><div class="title">削除・上書き・本番反映などの取り返しのつかない操作</div></div>
+    <div class="state unanswered" data-state>未回答</div>
+  </div>
+  <div class="body">
+    <dl class="grid">
+      <dt>該当</dt><dd>古いメモの<strong>移動</strong>(archive)。<code>os.remove</code>等の<strong>削除は無し</strong></dd>
+      <dt>防護</dt><dd>既存ファイルを上書きしない原子的移動(RENAME_NOREPLACE)。同名は連番で退避。移動前にファイルの差し替えを検知</dd>
+      <dt>発動条件</dt><dd>最終更新が指定日数より古いファイルのみ。日数は1〜36500に制限(入力ミスでの全件移動を防止)</dd>
+    </dl>
+    <details data-evi><summary>根拠を開く memo.py:99-122, 173(移動と防護)</summary>
+<pre>105  dest_name = name if counter == 0 else f"{base}.{counter}{ext}"
+107  current = os.stat(name, dir_fd=memo_dir_fd, follow_symlinks=False)
+108  if (current.st_dev, current.st_ino) != source_identity:
+109      raise OSError("移動前に元ファイルが差し替えられました")
+110  rename_no_replace(memo_dir_fd, name, archive_dir_fd, dest_name)
+...
+173  if days < 1 or days > 36500:
+174      print("日数は1〜36500の範囲で指定してください(事故防止)")</pre></details>
+    <div class="q">「削除はせず、上書きしない移動だけを行う」この挙動を許可しますか?</div>
+    <div class="choices">
+      <button class="allow" data-choice="allow" disabled>許可する</button>
+      <button class="deny" data-choice="deny" disabled>禁止/おかしい</button>
+      <button class="unknown" data-choice="unknown" disabled>不明</button>
+    </div>
+    <div class="hint" data-hint style="display:none">先に「根拠を開く」を押してコードを見てください</div>
+  </div>
+</div>
+
+<div class="card" data-card>
+  <div class="head">
+    <div><div class="cat">#3 機密・個人データのライフサイクル(カテゴリ3)</div><div class="title">秘密・個人情報がどこに置かれ、どこへ行くか</div></div>
+    <div class="state unanswered" data-state>未回答</div>
+  </div>
+  <div class="body">
+    <dl class="grid">
+      <dt>直書きの秘密</dt><dd>候補ゼロ(APIキー・パスワード・トークンの該当なし)</dd>
+      <dt>保存先</dt><dd>このPCの memos/ と archive/ フォルダのみ。暗号化・外部保管なし</dd>
+      <dt>前提</dt><dd>仕様上「個人情報は含まない運用」。<strong>個人情報を入れる運用に変える場合は、この判断はやり直しが必要</strong></dd>
+    </dl>
+    <details data-evi><summary>根拠を開く memo.py:10-11(保存先の定義)</summary>
+<pre>10  MEMO_DIR = "memos"
+11  ARCHIVE_DIR = "archive"
+（秘密値の代入・外部保存・暗号化処理は存在しない。保存先はローカル2フォルダのみ）</pre></details>
+    <div class="q">「データはローカル2フォルダのみ・秘密の直書きなし」で運用することを許可しますか?</div>
+    <div class="choices">
+      <button class="allow" data-choice="allow" disabled>許可する</button>
+      <button class="deny" data-choice="deny" disabled>禁止/おかしい</button>
+      <button class="unknown" data-choice="unknown" disabled>不明</button>
+    </div>
+    <div class="hint" data-hint style="display:none">先に「根拠を開く」を押してコードを見てください</div>
+  </div>
+</div>
+
+<div class="card" data-card>
+  <div class="head">
+    <div><div class="cat">#5 異常時の安全動作・業務不変条件(カテゴリ5)</div><div class="title">想定外の入力・状態でも安全に止まるか</div></div>
+    <div class="state unanswered" data-state>未回答</div>
+  </div>
+  <div class="body">
+    <dl class="grid">
+      <dt>入力異常</dt><dd>引数の個数・空キーワード・非整数の日数・範囲外の日数を検査して安全に終了</dd>
+      <dt>すり替え対策</dt><dd>ディレクトリ/ファイルをシンボリックリンクで別の場所へ差し替える攻撃を、O_NOFOLLOW と実体照合で拒否</dd>
+      <dt>失敗の扱い</dt><dd>途中で失敗したら「成功」と誤表示せず、終了コードを失敗(1)にする</dd>
+    </dl>
+    <details data-evi><summary>根拠を開く memo.py:44,50,151-175,184</summary>
+<pre>44   os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0), dir_fd=directory_fd,
+50   if not stat.S_ISREG(os.fstat(file_fd).st_mode):
+151  if len(sys.argv) != 3: ...
+173  if days < 1 or days > 36500: ...
+184  if FAILED: sys.exit(1)</pre></details>
+    <div class="q">「異常入力・リンク差し替え・途中失敗で安全側に止まる」設計を許可しますか?</div>
+    <div class="choices">
+      <button class="allow" data-choice="allow" disabled>許可する</button>
+      <button class="deny" data-choice="deny" disabled>禁止/おかしい</button>
+      <button class="unknown" data-choice="unknown" disabled>不明</button>
+    </div>
+    <div class="hint" data-hint style="display:none">先に「根拠を開く」を押してコードを見てください</div>
+  </div>
+</div>
+
+<div class="card" data-card>
+  <div class="head">
+    <div><div class="cat">#4 権限・認証の境界(カテゴリ4) / 禁止事項の横串</div><div class="title">関所の有無と、禁じた動作の混入チェック</div></div>
+    <div class="state unanswered" data-state>未回答</div>
+  </div>
+  <div class="body">
+    <dl class="grid">
+      <dt>権限境界</dt><dd>本ツールに認証・権限判定は無い(単一利用者のローカルCLIのため該当なし)。<strong>複数人利用や公開に変えるなら要再判断</strong></dd>
+      <dt>禁止事項の突合</dt><dd>仕様の禁止3項目「外部通信しない/ファイルを削除しない/テレメトリを取らない」を各カテゴリと突合 → いずれも該当コードなし(#Aの盲点は別)</dd>
+    </dl>
+    <details data-evi><summary>根拠を開く:禁止事項リスト ↔ 検査結果</summary>
+<pre>禁止「外部通信しない」  → #1 通信API候補ゼロ(盲点#Aは残る)
+禁止「削除しない」      → #2 os.remove等なし・移動のみ
+禁止「テレメトリ無し」  → #1 送信候補ゼロ
+権限の関所            → 該当コードなし(単一利用者CLI)</pre></details>
+    <div class="q">「禁止事項に反するコードは(盲点を除き)見当たらず、権限の関所は用途上不要」で許可しますか?</div>
+    <div class="choices">
+      <button class="allow" data-choice="allow" disabled>許可する</button>
+      <button class="deny" data-choice="deny" disabled>禁止/おかしい</button>
+      <button class="unknown" data-choice="unknown" disabled>不明</button>
+    </div>
+    <div class="hint" data-hint style="display:none">先に「根拠を開く」を押してコードを見てください</div>
+  </div>
+</div>
+
+<footer>
+  この文書について — 生成:code-atlas critical-review モード(3社会議2026-08-10で確定した設計憲法に準拠)。対象:memo.py commit e85cc6c / SHA-256先頭 032bca39d55ef01c。抽出:Grep+AI分類のみ(AST/taint/実行時観測は未実施)。<strong>これは限定範囲の検証補助であり、安全の保証ではありません。</strong>盲点(ネイティブ呼び出し等)と未実施の解析があること自体を隠さないことが、この画面の誠実性の根拠です。高リスク用途(医療・金融・個人情報・安全関連)では、コードを評価できる専門家の検証を併用してください。
+</footer>
+</main>
+
+<script>
+(function(){
+  var cards = Array.prototype.slice.call(document.querySelectorAll('[data-card]'));
+  var total = cards.length;
+  document.getElementById('total').textContent = total;
+  document.getElementById('found-num').textContent = total;
+
+  cards.forEach(function(card){
+    var evi = card.querySelector('[data-evi]');
+    var buttons = card.querySelectorAll('.choices button');
+    var hint = card.querySelector('[data-hint]');
+    var opened = false;
+    evi.addEventListener('toggle', function(){
+      if(evi.open){ opened = true; buttons.forEach(function(b){ b.disabled = false; }); if(hint) hint.style.display='none'; }
+    });
+    buttons.forEach(function(b){
+      b.addEventListener('click', function(){
+        if(b.disabled){ if(hint) hint.style.display='block'; return; }
+        buttons.forEach(function(x){ x.classList.remove('on'); });
+        b.classList.add('on');
+        card.setAttribute('data-answer', b.getAttribute('data-choice'));
+        var st = card.querySelector('[data-state]');
+        var c = b.getAttribute('data-choice');
+        st.className = 'state ' + c;
+        st.textContent = c==='allow'?'許可':(c==='deny'?'禁止':'不明');
+        recompute();
+      });
+    });
+  });
+
+  function recompute(){
+    var answered = 0, deny = 0, unknown = 0;
+    cards.forEach(function(card){
+      var a = card.getAttribute('data-answer');
+      if(a){ answered++; if(a==='deny') deny++; if(a==='unknown') unknown++; }
+    });
+    document.getElementById('answered').textContent = answered;
+    var v = document.getElementById('verdict');
+    var big = document.getElementById('verdict-big');
+    var desc = document.getElementById('verdict-desc');
+    // 憲法: 未回答/不明/禁止/盲点が残れば緑にしない
+    if(answered < total || unknown > 0){
+      v.className = 'verdict pending';
+      big.textContent = '判定途中';
+      desc.textContent = '未回答('+(total-answered)+'件)または「不明」('+unknown+'件)が残っています。すべての急所にあなたの判断が入るまで、この画面は結論を出しません。';
+    } else if(deny > 0){
+      v.className = 'verdict blocked';
+      big.textContent = '出してはいけない';
+      desc.textContent = 'あなたが「禁止/おかしい」と判断した急所が '+deny+' 件あります。修正するまで出荷しないでください。';
+    } else {
+      v.className = 'verdict ok';
+      big.textContent = '全急所をあなたが確認';
+      desc.textContent = '全ての急所を根拠付きで確認し許可しました。ただし「盲点(ネイティブ呼び出し等)」と「未実施の解析(AST/実行時観測)」が残ることは前提です。これは"安全の証明"ではなく"急所をあなたが見た"記録です。高リスク用途は専門家の検証を併用してください。';
+    }
+  }
+  recompute();
+})();
+</script>
+</body>
+</html>
