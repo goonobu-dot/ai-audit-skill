@@ -345,7 +345,7 @@ class AuditGuardTests(unittest.TestCase):
     def _quality_profile(self, **overrides):
         profile = {
             "schema_version": 1,
-            "quality_profile_version": "1.2.0",
+            "quality_profile_version": "1.3.0",
             "system_name": "example-system",
             "target_types": ["cli"],
             "assurance_model": "limited-scope-technical-verification",
@@ -359,7 +359,7 @@ class AuditGuardTests(unittest.TestCase):
             "standards": [
                 {
                     "source_id": "AI-AUDIT",
-                    "version": "1.2.0",
+                    "version": "1.3.0",
                     "role": "internal-control-inventory",
                     "claim_level": "mapped",
                     "coverage_scope": "all published AA controls",
@@ -455,7 +455,7 @@ class AuditGuardTests(unittest.TestCase):
                 self._quality_row(
                     requirement_id=f"QA-AA-{index:03d}",
                     source_id="AI-AUDIT",
-                    source_version="1.2.0",
+                    source_version="1.3.0",
                     source_requirement=control_id,
                     severity="critical" if control_id in MODULE.AUDIT_CRITICAL_IDS else "important",
                 )
@@ -924,7 +924,7 @@ class AuditGuardTests(unittest.TestCase):
             "# Report\n\n"
             "**技術評価結論:conditional**\n\n"
             "限定範囲の技術的検証 quality-profile.json requirements-matrix.csv\n\n"
-            "AI-AUDIT 1.2.0 ISO-IEC-25010 2023 ISO-IEC-IEEE-29119-2 "
+            "AI-AUDIT 1.3.0 ISO-IEC-25010 2023 ISO-IEC-IEEE-29119-2 "
             "ISO-IEC-IEEE-29119-3 2021 NIST-SP-800-218 1.1\n\n"
             "適合性確認済み: ISO/IEC 25010:2023。監査法人による監査を実施。"
             "全ての統制を満たしており、本番利用を承認する。\n\n"
@@ -956,7 +956,7 @@ class AuditGuardTests(unittest.TestCase):
             "**技術評価結論:acceptable-within-scope**\n\n"
             "**外部提出:承認済み**\n\n"
             "限定範囲の技術的検証 quality-profile.json requirements-matrix.csv\n\n"
-            "AI-AUDIT 1.2.0 ISO-IEC-25010 2023 ISO-IEC-IEEE-29119-2 "
+            "AI-AUDIT 1.3.0 ISO-IEC-25010 2023 ISO-IEC-IEEE-29119-2 "
             "ISO-IEC-IEEE-29119-3 2021 NIST-SP-800-218 1.1\n"
         )
         approval_text = "{\"decision\":\"external-release-approved\"}\n"
@@ -967,6 +967,7 @@ class AuditGuardTests(unittest.TestCase):
             "reviewer_name": "Human Reviewer",
             "reviewer_role": "quality manager",
             "reviewer_organization": "customer organization",
+            "audit_performer_identity": "performer@example.invalid",
             "approved_at": "2026-08-07T12:00:00+09:00",
             "approval_record": "evidence/report-approval.json",
             "approval_record_sha256": (
@@ -1006,6 +1007,36 @@ class AuditGuardTests(unittest.TestCase):
         errors = validate_quality_package(profile_path, matrix_path, audit)
         self.assertTrue(any("approval_record path contains symlink" in error for error in errors), errors)
 
+    def test_approved_release_rejects_self_approval(self):
+        from scripts.audit_guard import validate_quality_package
+
+        report_hash = "sha256:" + "0" * 64
+        release_gate = {
+            "status": "approved",
+            "semantic_review_required": True,
+            "reviewer_identity": "same@example.invalid",
+            "reviewer_name": "Human Reviewer",
+            "reviewer_role": "quality manager",
+            "reviewer_organization": "customer organization",
+            "audit_performer_identity": "same@example.invalid",
+            "approved_at": "2026-08-07T12:00:00+09:00",
+            "approval_record": "evidence/report-approval.json",
+            "approval_record_sha256": "sha256:" + "0" * 64,
+            "approval_signature": "evidence/report-approval.json.sig",
+            "report_sha256": report_hash,
+        }
+        profile_path, matrix_path, audit = self._write_quality_package(
+            self._quality_profile(
+                technical_conclusion="acceptable-within-scope",
+                report_release_gate=release_gate,
+            ),
+            self._matrix_text(self._valid_core_rows()),
+        )
+        errors = validate_quality_package(profile_path, matrix_path, audit)
+        self.assertTrue(
+            any("must differ from reviewer_identity" in error for error in errors), errors
+        )
+
     @unittest.skipUnless(shutil.which("ssh-keygen"), "ssh-keygen is required")
     def test_external_release_requires_detached_signature_from_trusted_signer(self):
         from scripts.audit_guard import (
@@ -1019,7 +1050,7 @@ class AuditGuardTests(unittest.TestCase):
             "**技術評価結論:acceptable-within-scope**\n\n"
             "**外部提出:承認済み**\n\n"
             "限定範囲の技術的検証 quality-profile.json requirements-matrix.csv\n\n"
-            "AI-AUDIT 1.2.0 ISO-IEC-25010 2023 ISO-IEC-IEEE-29119-2 "
+            "AI-AUDIT 1.3.0 ISO-IEC-25010 2023 ISO-IEC-IEEE-29119-2 "
             "ISO-IEC-IEEE-29119-3 2021 NIST-SP-800-218 1.1\n"
         )
         report_hash = "sha256:" + hashlib.sha256(report_text.encode()).hexdigest()
@@ -1027,13 +1058,14 @@ class AuditGuardTests(unittest.TestCase):
             "schema_version": 1,
             "decision": "external-release-approved",
             "system_name": "example-system",
-            "quality_profile_version": "1.2.0",
+            "quality_profile_version": "1.3.0",
             "technical_conclusion": "acceptable-within-scope",
             "report_sha256": report_hash,
             "reviewer_identity": "reviewer@example.invalid",
             "reviewer_name": "Human Reviewer",
             "reviewer_role": "quality manager",
             "reviewer_organization": "customer organization",
+            "audit_performer_identity": "performer@example.invalid",
             "approved_at": "2026-08-07T12:00:00+09:00",
         }
         gate = {
@@ -1041,7 +1073,8 @@ class AuditGuardTests(unittest.TestCase):
             "semantic_review_required": True,
             **{key: approval_record[key] for key in (
                 "reviewer_identity", "reviewer_name", "reviewer_role",
-                "reviewer_organization", "approved_at", "report_sha256",
+                "reviewer_organization", "audit_performer_identity",
+                "approved_at", "report_sha256",
             )},
             "approval_record": "evidence/release-approval.json",
             "approval_record_sha256": "sha256:" + "0" * 64,

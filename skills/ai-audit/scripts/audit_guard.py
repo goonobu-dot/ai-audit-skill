@@ -19,10 +19,10 @@ from typing import Iterable
 
 SCHEMA_VERSION = 2
 QUALITY_PROFILE_SCHEMA_VERSION = 1
-QUALITY_PROFILE_VERSION = "1.2.0"
+QUALITY_PROFILE_VERSION = "1.3.0"
 DEFAULT_EXCLUSIONS: tuple[str, ...] = ()
 CORE_STANDARDS = {
-    "AI-AUDIT": "1.2.0",
+    "AI-AUDIT": "1.3.0",
     "ISO-IEC-25010": "2023",
     "ISO-IEC-IEEE-29119-2": "2021",
     "ISO-IEC-IEEE-29119-3": "2021",
@@ -49,7 +49,7 @@ AUDIT_CONTROL_IDS = {
     *(f"AA-5.{number}" for number in range(1, 7)),
     *(f"AA-6.{number}" for number in range(1, 5)),
     *(f"AA-7.{number}" for number in range(1, 6)),
-    *(f"AA-8.{number}" for number in range(1, 9)),
+    *(f"AA-8.{number}" for number in range(1, 10)),
     *(f"AA-9.{number}" for number in range(1, 10)),
 }
 AUDIT_CRITICAL_IDS = {
@@ -849,11 +849,25 @@ def _validate_report_release_gate(gate: object, audit_root: Path) -> list[str]:
 
     for field in (
         "reviewer_identity", "reviewer_name", "reviewer_role", "reviewer_organization",
+        "audit_performer_identity",
         "approved_at", "approval_record", "approval_record_sha256",
         "approval_signature", "report_sha256",
     ):
         if not isinstance(gate.get(field), str) or not gate[field].strip():
             errors.append(f"approved report_release_gate requires {field}")
+    # The person who ran/led the audit must not be the person who approves its
+    # external release (3-AI review 2026-08-10: signer != approver separation must
+    # be machine-enforced, not just declared in AA-8.8).
+    performer = gate.get("audit_performer_identity")
+    reviewer = gate.get("reviewer_identity")
+    if (
+        isinstance(performer, str) and isinstance(reviewer, str)
+        and performer.strip() and performer.strip() == reviewer.strip()
+    ):
+        errors.append(
+            "audit_performer_identity must differ from reviewer_identity "
+            "(the audit performer cannot approve their own external release)"
+        )
     approved_at = gate.get("approved_at")
     if isinstance(approved_at, str):
         try:
@@ -926,7 +940,10 @@ def validate_external_release(
         return path_errors
     errors = validate_quality_package(profile_path, matrix_path, audit_root)
     errors.extend(validate_report_consistency(profile_path, report_path))
-    errors.extend(scan_artifacts(audit_root))
+    # External release is exactly the path where a secret fingerprint must not
+    # survive, so the submission gate scans in external mode (3-AI review
+    # 2026-08-10: Codex and Grok both found the release gate bypassed --external).
+    errors.extend(scan_artifacts(audit_root, external=True))
     errors.extend(verify_seal(target_root, seal_path))
     profile, profile_errors = _load_profile(profile_path)
     errors.extend(profile_errors)
@@ -1009,6 +1026,7 @@ def validate_external_release(
         "reviewer_name": gate.get("reviewer_name"),
         "reviewer_role": gate.get("reviewer_role"),
         "reviewer_organization": gate.get("reviewer_organization"),
+        "audit_performer_identity": gate.get("audit_performer_identity"),
         "approved_at": gate.get("approved_at"),
     }
     if record != expected_record:
@@ -1150,7 +1168,7 @@ def validate_quality_package(
             errors.append(f"required source must be mapped or verified: {source_id}")
 
     expected_inventories: dict[tuple[str, str], set[str]] = {
-        ("AI-AUDIT", "1.2.0"): AUDIT_CONTROL_IDS,
+        ("AI-AUDIT", CORE_STANDARDS["AI-AUDIT"]): AUDIT_CONTROL_IDS,
         ("ISO-IEC-25010", "2023"): ISO_25010_CHARACTERISTICS,
         ("NIST-SP-800-218", "1.1"): NIST_SSDF_TASK_IDS,
     }

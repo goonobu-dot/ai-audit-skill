@@ -35,7 +35,7 @@ description: Use when a user asks to audit, inspect, accept, or produce an evide
 5. `quality-profile.json` — 対象種別、参照基準の版・参照日・主張レベル、機械算出結論
 6. `requirements-matrix.csv` — 要求ID、適用性、試験、証拠、判定、制限、責任者の全数表
 
-報告書は既定で外部提出不可とする。自由記述は正規表現だけで意味を保証できないため、外部提出前に人間が全文を意味レビューする。承認記録はOpenSSHで署名し、顧客管理のbundle外`allowed_signers`で検証する。署名対象には報告書、プロファイル本体、マトリクス、監査成果物manifest、ソース封印のハッシュを含める。
+報告書は既定で外部提出不可とする。自由記述は正規表現だけで意味を保証できないため、外部提出前に人間が全文を意味レビューする。承認記録はOpenSSHで署名し、顧客管理のbundle外`allowed_signers`で検証する。署名対象には報告書、プロファイル本体、マトリクス、監査成果物manifest、ソース封印のハッシュを含める。**外部提出の承認者(reviewer_identity)は、監査を実施・主導した者(audit_performer_identity)と別人でなければならない**(自己承認は機械的に拒否される。両者を承認記録へ記録し署名で束ねる)。外部提出ゲートは指紋除去(external)モードでスキャンし、指紋入りbundleを拒否する。
 
 監査基準は [references/audit-standards.md](references/audit-standards.md)、品質プロファイルは [references/quality-profile.md](references/quality-profile.md)、雛形は [templates/](templates/) を読む。発注者として品質要件を作る依頼では、監査開始前に [templates/quality-requirements-template.md](templates/quality-requirements-template.md) を使う。
 
