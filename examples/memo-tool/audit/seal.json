@@ -1,12 +1,13 @@
 {
   "schema_version": 2,
-  "sealed_at": "2026-08-07T04:23:19+00:00",
-  "source_commit": "22af8fefedb5672011c8b15772e26700199f57e6",
+  "sealed_at": "2026-08-10T13:50:54+00:00",
+  "source_commit": "2b31e59deb5fc727ad500893d88f0f2e9ede0265",
   "source_manifest_sha256": "sha256:60dc994d5ae01da0dd52df6dbe478efbf7d2a339ca3bf703f936992490e0d1b6",
   "scope": ".",
   "exclusions": [
     "audit/",
-    "atlas/"
+    "atlas/",
+    "critical-review/"
   ],
   "artifacts": {
     "memo.py": "sha256:032bca39d55ef01cf100f58e6ec515cafd0663379695711125df093d4c941e68",

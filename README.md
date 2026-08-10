@@ -117,6 +117,15 @@ cp -R skills/code-atlas ~/.agents/skills/
 
 営業先へそのまま提示できる説明、責任分界、納品物、第三者機関への引継ぎフローは[企業向け「セキュリティ・監査付き納品」の説明資料](https://goonobu-dot.github.io/ai-audit-skill/client-security-assurance.html)にまとめています。ブラウザから印刷・PDF保存できます。
 
+## 付属:code-atlas(コードを読めない人が中身を見る)
+
+`skills/code-atlas` は、コードを読めない人向けの2モードを持つ静的HTML生成スキルです。
+
+- **atlas(全体地図)**:システム全体を機能単位で図解し、各説明に根拠行(`file:行`)を付ける。
+- **critical-review(急所の検証読み)**:全部を理解させるのでなく、事故のほぼ全てが通る「急所6カテゴリ(外部送信・高影響な外部作用・機密/個人データ・権限境界・異常時動作・供給網)+禁止事項」だけを、非エンジニアが**許可/禁止/不明を自分で判断できる検証カード**として提示する。
+
+critical-review は「見せかけの安心」を避ける設計憲法に従います:found(発見)とcoverage(解析範囲)を分離し、盲点(ネイティブ呼び出し・eval・動的import等)は「判定不能候補」として赤で開示し、根拠を開くまで許否を選べず、未回答・不明・禁止が1つでも残れば緑にしません。「網羅」は主張しません。実物は [examples/memo-tool/critical-review/index.html](examples/memo-tool/critical-review/index.html) をブラウザで開いてください。設計根拠は [skills/code-atlas/references/critical-review.md](skills/code-atlas/references/critical-review.md)。
+
 ## ドキュメント
 
 - [Web版・詳細マニュアル](https://goonobu-dot.github.io/ai-audit-skill/)
@@ -130,6 +139,7 @@ cp -R skills/code-atlas ~/.agents/skills/
 - [iOS品質プロファイル](skills/ai-audit/references/ios-quality-profile.md)
 - [安全関連・OT境界](skills/ai-audit/references/safety-critical-boundary.md)
 - [監査基準](skills/ai-audit/references/audit-standards.md)
+- [code-atlas critical-review 設計憲法](skills/code-atlas/references/critical-review.md)
 - [再現可能なサンプル](examples/memo-tool/)
 
 ## 重要な境界
