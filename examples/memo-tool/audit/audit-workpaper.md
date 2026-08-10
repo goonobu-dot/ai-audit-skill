@@ -1,6 +1,6 @@
 # 技術監査調書:業務メモ整理ツール(memo-tool)
 
-対応報告書:MEMO-20260807-003 / Quality Profile:1.2.0。公開証拠は秘密値・ローカル絶対パスを除去済み。
+対応報告書:MEMO-20260807-003 / Quality Profile:1.3.0。公開証拠は秘密値・ローカル絶対パスを除去済み。
 
 ## W1. 対象・環境・不変性
 
@@ -14,9 +14,9 @@
 
 - target type:`cli` / 安全関連・OT・規制対象:該当なし
 - リスク:影響度低、データ機密度中、自律性低 → 標準
-- 要求母集団:`requirements-matrix.csv`（AI-AUDIT 53統制、ISO品質9特性、NIST SSDF v1.1の47 task ID）
-- AI-AUDIT 1.2.0、ISO/IEC 25010:2023、NIST SP 800-218 v1.1はmapped、29119-2/-3:2021はreferenced
-- v1.1証拠は保存しているがv1.2要求単位の期待値・実測値・Evidence ID/hashを再収集していないため、該当行はnot-tested
+- 要求母集団:`requirements-matrix.csv`（AI-AUDIT 54統制、ISO品質9特性、NIST SSDF v1.1の47 task ID）
+- AI-AUDIT 1.3.0、ISO/IEC 25010:2023、NIST SP 800-218 v1.1はmapped、29119-2/-3:2021はreferenced
+- v1.1証拠は保存しているがv1.3要求単位の期待値・実測値・Evidence ID/hashを再収集していないため、該当行はnot-tested
 
 ## W3. 要求別機械検査
 

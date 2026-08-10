@@ -1,4 +1,4 @@
-# ai-audit Quality Profile v1.2.0
+# ai-audit Quality Profile v1.3.0
 
 ## 目的
 
@@ -18,7 +18,7 @@
 
 | source_id / 版 | 役割 | 公式情報 |
 |---|---|---|
-| `AI-AUDIT` / `1.2.0` | 本スキルの53統制の母集団 | https://github.com/goonobu-dot/ai-audit-skill/ |
+| `AI-AUDIT` / `1.3.0` | 本スキルの54統制の母集団 | https://github.com/goonobu-dot/ai-audit-skill/ |
 | `ISO-IEC-25010` / `2023` | 製品品質9特性の分類 | https://www.iso.org/standard/78176.html |
 | `ISO-IEC-IEEE-29119-2` / `2021` | テスト工程 | https://www.iso.org/standard/79428.html |
 | `ISO-IEC-IEEE-29119-3` / `2021` | テスト文書・証拠 | https://www.iso.org/standard/79429.html |
@@ -72,7 +72,7 @@ ISO/IEC 25010:2023の9特性は、機能適合性、性能効率性、互換性�
 | `owner` | 対応・受容の責任者 |
 | `hazard_id`〜`stage_approval_id` | 安全関連のハザード、設計、試験、逸脱、残余リスク、段階承認の連鎖 |
 
-AI-AUDITの53統制、ISO/IEC 25010:2023の9特性、NIST SSDF v1.1の47 task ID、iOS時のMASVS v2.1.0全24統制とApple検査群は、ガード内の版付き母集団と照合する。欠落・未知IDは失敗する。ガードは既定の`mandatory`と`severity`も照合し、難しい行だけを任意・Minorへ格下げする操作を拒否する。
+AI-AUDITの54統制、ISO/IEC 25010:2023の9特性、NIST SSDF v1.1の47 task ID、iOS時のMASVS v2.1.0全24統制とApple検査群は、ガード内の版付き母集団と照合する。欠落・未知IDは失敗する。ガードは既定の`mandatory`と`severity`も照合し、難しい行だけを任意・Minorへ格下げする操作を拒否する。
 
 非適用は削除ではなく行として残し、理由と承認者を必須にする。必須又はCriticalの非適用はowner自身の承認を拒否する。pass/conditional/failは期待値・実測値・非空証拠・一致するSHA-256を必須にする。未実施を非適用へ置き換えない。CSVを表計算ソフトで開くことを考慮し、`=`, `+`, `-`, `@`から始まるセルを禁止する。
 

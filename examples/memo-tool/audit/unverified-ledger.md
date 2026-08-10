@@ -4,8 +4,8 @@
 
 | Requirement ID | 出典・版・要求ID | 必須 | 重大度 | 状態 | 理由 | 推奨 | owner | 結論影響 |
 |---|---|---|---|---|---|---|---|---|
-| MEMO-AA-001〜053 | AI-AUDIT 1.2.0 AA-1.1〜AA-9.9（正本はmatrix） | true | Critical/Important | not-tested | v1.1証拠をv1.2要求単位で再収集していない | 各行の期待値・実測値・Evidence ID/hashを収集 | quality-owner | not-acceptable |
-| MEMO-Q-001〜008 | ISO-IEC-25010 2023（正本はmatrix） | true | Important | not-tested | 9特性のv1.2粒度で再試験前 | 特性別に試験・証拠化 | quality-owner | not-acceptable |
+| MEMO-AA-001〜054 | AI-AUDIT 1.3.0 AA-1.1〜AA-9.9（正本はmatrix） | true | Critical/Important | not-tested | v1.1証拠をv1.3要求単位で再収集していない | 各行の期待値・実測値・Evidence ID/hashを収集 | quality-owner | not-acceptable |
+| MEMO-Q-001〜008 | ISO-IEC-25010 2023（正本はmatrix） | true | Important | not-tested | 9特性のv1.3粒度で再試験前 | 特性別に試験・証拠化 | quality-owner | not-acceptable |
 | MEMO-S-001〜047 | NIST-SP-800-218 1.1の47 task ID | true | Important | not-tested | SSDF実務の要求単位証拠を再収集していない | 開発・保護・実装・対応証拠を収集 | security-owner | not-acceptable |
 
 ## 非適用
