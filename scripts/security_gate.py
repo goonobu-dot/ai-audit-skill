@@ -23,6 +23,9 @@ SPEC.loader.exec_module(MODULE)
 build_prompt_bundle = MODULE.build_prompt_bundle
 gate_commit = MODULE.gate_commit
 redact_pii = MODULE.redact_pii
+scan_deps = MODULE.scan_deps
+gen_sbom = MODULE.gen_sbom
+parse_osv_results = MODULE.parse_osv_results
 main = MODULE.main
 
 

@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.6.0 - 2026-08-24
+
+依存の脆弱性(SCA)とSBOMを、文書でなく機械で取る(P1)。読み取り検査であり実装能力を一切制限しない。
+
+- `security_gate.py scan-deps`:osv-scanner(Apache-2.0)でlockfileの既知脆弱性を検査。Critical/Highで非ゼロ。実測で古いlodashのCRITICAL/HIGHを検出しブロックを確認。CI用に既存osv JSONを採点する `--results` も提供
+- `security_gate.py gen-sbom`:syft(Apache-2.0)でCycloneDX SBOMを生成(監査bundleへ同梱・seal対象)
+- **ツール未導入時は exit 3 = NOT-TESTED**(cleanと扱わない=正直な安全側)
+- CIに osv-scanner(pinned container)を追加し、自リポの依存脆弱性を機械検査
+- 回帰テスト+6(計74)。osv結果のパース・重大度判定・未導入経路をツール有無に依存せず固定
+
 ## 1.5.0 - 2026-08-24
 
 セキュリティ・監視・監査の強化。3社会議(Claude・Codex・Grok独立)+OSS徹底調査で「現状は事後の証跡が強く、防止・機械強制が弱い」と一致。CodexとGrokが独立に最優先で挙げた「入口の機械ゲート」を実装。文書だけだった防御を実際に動くコードにした。
