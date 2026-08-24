@@ -135,6 +135,8 @@ python3 scripts/security_gate.py gen-sbom <repo> --output sbom.cdx.json  # syft�
 
 `scan-deps`/`gen-sbom` は公開OSS(osv-scanner・syft、いずれもApache-2.0・オフライン可)を使い、**未導入なら「未検証」を明示**して clean とは扱いません(`brew install osv-scanner syft`)。
 
+3つのゲートの使い方と設計思想は[入口の機械ゲート(使い方と思想)](https://goonobu-dot.github.io/ai-audit-skill/security-gates.html)にまとめています。
+
 `gate-commit` は [templates/pre-commit-config-template.yaml](skills/ai-audit/templates/pre-commit-config-template.yaml) を `.pre-commit-config.yaml` として置けば毎コミット自動で走ります。`build-prompt-bundle` は「全部送るが秘密だけマスク(redact)」が既定で、機密性が極端に高いときだけ許可リスト方式(`--mode allowlist`)に切り替えます。秘密がマスクを生き延びたら束を作らず失敗します(fail-close)。
 
 ## 付属:code-atlas(コードを読めない人が中身を見る)
@@ -151,6 +153,7 @@ critical-review は「見せかけの安心」を避ける設計憲法に従い�
 - [Web版・詳細マニュアル](https://goonobu-dot.github.io/ai-audit-skill/)
 - [5分で始める・実案件の進め方](https://goonobu-dot.github.io/ai-audit-skill/getting-started.html)
 - [監査内容の詳しい備考](https://goonobu-dot.github.io/ai-audit-skill/audit-notes.html)
+- [入口の機械ゲート(使い方と思想)](https://goonobu-dot.github.io/ai-audit-skill/security-gates.html)
 - [副業・受託開発での活用](https://goonobu-dot.github.io/ai-audit-skill/freelance-playbook.html)
 - [企業向け「セキュリティ・監査付き納品」の説明資料](https://goonobu-dot.github.io/ai-audit-skill/client-security-assurance.html)
 - [公開前プライバシーチェック](https://goonobu-dot.github.io/ai-audit-skill/privacy-checklist.html)
