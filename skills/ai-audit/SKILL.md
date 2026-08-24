@@ -62,6 +62,10 @@ description: Use when a user asks to audit, inspect, accept, or produce an evide
 ### 秘密情報の絶対ルール
 
 - **専用スキャナを第一とする**:シークレット検出は gitleaks 等の版付き専用ツールを第一手段とし、正規表現は補助と明記する。専用スキャナ・PII検出が未導入なら、該当検査を`not-tested`とし技術評価結論を`conditional`以下に固定する(正規表現だけで「秘密なし」と結論しない)。既知漏洩サンプル(fixture)での回帰確認を伴わせる。
+- **コミット前ゲート(入口で止める)= 機械強制**:秘密は履歴に入る前に止めるのが最も安い。同梱ガードで、gitleaks(あれば)+パターンの**両方**を走らせ、どちらかが秘密を見つけたらコミットを非ゼロで止める(両者は取りこぼす対象が異なるため union が安全)。PIIは誤検知を避けるため警告のみ。対象プロジェクトには [templates/pre-commit-config-template.yaml](templates/pre-commit-config-template.yaml) を `.pre-commit-config.yaml` として置き `pre-commit install` する。
+  ```bash
+  python3 "$SKILL_DIR/scripts/security_gate.py" gate-commit "$TARGET_ROOT"
+  ```
 - **秘密値そのものを保存しない**。検出位置、種類、マスク表示を残す。十分に高エントロピーなトークンだけは照合用の短いSHA-256指紋を許容するが、パスワード・PIN・復旧コードなど辞書攻撃可能な値の指紋は公開しない。**外部提出bundleでは指紋も出さない**(`redact --external` / `scan-artifacts --external` を使い、位置・種別のみ)。
 - スキャナーの生出力はそのまま調書やGitへ保存しない。本スキル同梱ガードの `redact <一時raw> --output <証拠> --delete-source` で、マスキング済み出力の保存成功後に未加工一時ファイルを削除する。`--delete-source`はシステム一時ディレクトリ配下・非symlinkの原raw以外は拒否される。出力は0600・原子的書き込み。原本や対象コードへこの削除オプションを使わない。
 - 「生出力全文」ではなく「マスキング済み出力」を証拠とする。APIキー、トークン、パスワード、個人情報をプロンプトへ含めない。
@@ -73,9 +77,19 @@ description: Use when a user asks to audit, inspect, accept, or produce an evide
 
 別系統AI(既定はCodex/OpenAI。Cursor経由のGrok等でも可)へ渡すのは仕様書、監査対象コード、監査観点だけとし、実装者の説明や先行レビュー結論を渡さない。モデル名は固定せず、環境変数で選べるようにする。
 
-### 送信前DLP(外部LLMへ何を出すか)
+### 送信前DLP(外部LLMへ何を出すか)= 機械強制
 
-**外部LLMへコードを送る時点で、それ自体が「外に出したくないコード」の外部送信になる**。送信前に:(1)分類済みの許可パスallowlistのみを送り、秘密・個人情報・鍵材・顧客データを含むパスを除外マニフェストで落とす、(2)送信内容(どのパスをどのベンダー・どのモデルへ、いつ)を調書へ台帳化する、(3)顧客同意・データ保持条件・リージョンを確認する、(4)機密度が高く外部送信できない対象は、ローカルモデルを使うか当該観点を未検証扱いにする。ベンダー側セッション記録(CodexのJSONL等)は`scan-artifacts`の対象外であり、その保持有無を台帳へ明記して共有bundleと分離する。
+**外部LLMへコードを送る時点で、それ自体が「外に出したくないコード」の外部送信になる**。これを手順の心得で終わらせず、**同梱ガードで機械的に処理する**:
+
+```bash
+# 既定=redactモード: 全文脈を送るが秘密・PIIをマスク(外部AIの能力を落とさず漏洩を防ぐ)
+python3 "$SKILL_DIR/scripts/security_gate.py" build-prompt-bundle "$TARGET_ROOT" --output "$BUNDLE_DIR"
+# 機密性が極端に高い場合=allowlistモード: 許可パスだけ送る(文脈は減る)
+python3 "$SKILL_DIR/scripts/security_gate.py" build-prompt-bundle "$TARGET_ROOT" \
+  --output "$BUNDLE_DIR" --mode allowlist --allow "$ALLOW_MANIFEST"
+```
+
+生成された `$BUNDLE_DIR`(0700)だけを外部AIに渡す。中の `transmission-ledger.json`(何を送るか・宛先/モデル・各hash)を調書へ記録する。**秘密がredactを生き延びた場合はbundleを作らずfail-close**する(その時は元コードから秘密を除去してから再実行)。バイナリは送らず台帳に列挙される。既定はパターンredactのみで網羅ではない旨も台帳に明記される(PII精度はPresidio導入で将来強化)。ベンダー側セッション記録(CodexのJSONL等)は`scan-artifacts`の対象外であり、その保持有無を台帳へ明記して共有bundleと分離する。
 
 ### プロンプトインジェクション対策
 

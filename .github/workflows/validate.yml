@@ -19,9 +19,18 @@ jobs:
     steps:
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Run guard tests
+        with:
+          fetch-depth: 0  # full history so the secret scan covers every commit
+      - name: Run guard and security-gate tests
         run: python3 -m unittest discover -s tests -v
       - name: Run sample acceptance tests
         run: python3 -m unittest discover -s examples/memo-tool/tests -v
       - name: Validate reproducible audit bundle
         run: python3 scripts/audit_guard.py validate-bundle examples/memo-tool
+      - name: Secret scan (gitleaks, whole history)
+        # Machine-enforced, not doc-only: gitleaks scans the repo (respecting the
+        # committed .gitleaks.toml allowlist of intentional test fixtures) and fails
+        # CI on any real leak (3-AI review 2026-08).
+        run: |
+          docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:v8.30.1 \
+            dir /repo --no-banner --config /repo/.gitleaks.toml

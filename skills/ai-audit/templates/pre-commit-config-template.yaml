@@ -1,0 +1,30 @@
+# ai-audit 同梱: コミット前に秘密の混入を止める pre-commit 設定の雛形。
+#
+# 使い方(対象プロジェクトのルートで):
+#   1) このファイルを `.pre-commit-config.yaml` としてコピー
+#   2) `pip install pre-commit` して `pre-commit install`
+#   3) 以後、`git commit` のたびに下記フックが走り、秘密が混入していれば止まる
+#
+# 設計思想(3社会議 2026-08): 止める判定は決定論的ゲートが担う。gitleaks と
+# ai-audit 同梱の gate-commit の両方を走らせ、どちらかが秘密を見つけたら止める
+# (両者は取りこぼす対象が異なるため、union の方が安全)。--no-verify で握り
+# つぶさないこと。
+
+repos:
+  # 1) 公開OSS: gitleaks(Apache-2.0)。権威ある秘密検出。
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.1  # 導入時に最新の安定タグへ更新すること
+    hooks:
+      - id: gitleaks
+
+  # 2) ai-audit 同梱ゲート: gitleaks が取りこぼすパターン + PII 警告。
+  #    <PATH-TO-ai-audit> を、この雛形を取り出したリポジトリのパスに置き換える。
+  #    (例: ~/.claude/skills/ai-audit の親、あるいは clone した ai-audit-skill)
+  - repo: local
+    hooks:
+      - id: ai-audit-gate-commit
+        name: ai-audit gate-commit (secret union + PII warn)
+        entry: python3 <PATH-TO-ai-audit-skill>/scripts/security_gate.py gate-commit
+        language: system
+        pass_filenames: false
+        stages: [pre-commit]
