@@ -1,9 +1,11 @@
 import json
+import shutil
 import subprocess
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
@@ -120,6 +122,76 @@ class SecurityGateTests(unittest.TestCase):
         code, msgs = gate_commit(self.repo)
         self.assertEqual(0, code)
         self.assertTrue(any("WARNING" in m and "PII" in m for m in msgs))
+
+    # --- P1: dependency SCA + SBOM ---
+    def test_parse_osv_flattens_and_grades(self):
+        import scripts.security_gate as sg
+        from scripts.security_gate import parse_osv_results
+        _has_blocking = sg.MODULE._has_blocking
+        report = {
+            "results": [
+                {
+                    "source": {"path": "package-lock.json"},
+                    "packages": [
+                        {
+                            "package": {"name": "lodash", "version": "4.17.11"},
+                            "vulnerabilities": [
+                                {"id": "GHSA-x", "database_specific": {"severity": "HIGH"}},
+                                {"id": "GHSA-y", "database_specific": {"severity": "LOW"}},
+                            ],
+                        }
+                    ],
+                }
+            ]
+        }
+        findings = parse_osv_results(report)
+        self.assertEqual(2, len(findings))
+        self.assertEqual("lodash@4.17.11", findings[0]["package"])
+        self.assertTrue(_has_blocking(findings))  # HIGH is blocking
+
+    def test_scan_deps_results_mode_blocks_on_high(self):
+        from scripts.security_gate import scan_deps
+        results = Path(self.temp.name) / "osv.json"
+        results.write_text(json.dumps({
+            "results": [{
+                "source": {"path": "package-lock.json"},
+                "packages": [{
+                    "package": {"name": "lodash", "version": "4.17.11"},
+                    "vulnerabilities": [{"id": "GHSA-jf85", "database_specific": {"severity": "CRITICAL"}}],
+                }],
+            }]
+        }), encoding="utf-8")
+        code, msgs = scan_deps(self.repo, results_path=results)
+        self.assertEqual(1, code)
+        self.assertTrue(any("BLOCKING" in m for m in msgs))
+
+    def test_scan_deps_results_mode_clean(self):
+        from scripts.security_gate import scan_deps
+        results = Path(self.temp.name) / "osv.json"
+        results.write_text('{"results":[]}', encoding="utf-8")
+        code, _ = scan_deps(self.repo, results_path=results)
+        self.assertEqual(0, code)
+
+    def test_scan_deps_reports_not_tested_when_tool_absent(self):
+        import scripts.security_gate as sg
+        with mock.patch.object(sg.MODULE.shutil, "which", return_value=None):
+            code, msgs = sg.scan_deps(self.repo)
+        self.assertEqual(3, code)  # distinct "not-tested", never treated as clean
+        self.assertTrue(any("NOT-TESTED" in m for m in msgs))
+
+    def test_gen_sbom_reports_not_tested_when_tool_absent(self):
+        import scripts.security_gate as sg
+        with mock.patch.object(sg.MODULE.shutil, "which", return_value=None):
+            code, msgs = sg.gen_sbom(self.repo, Path(self.temp.name) / "sbom.json")
+        self.assertEqual(3, code)
+        self.assertTrue(any("NOT-TESTED" in m for m in msgs))
+
+    @unittest.skipUnless(shutil.which("osv-scanner"), "osv-scanner required")
+    def test_scan_deps_clean_repo_passes(self):
+        from scripts.security_gate import scan_deps
+        (self.repo / "src" / "app.py").write_text("ok = True\n", encoding="utf-8")
+        code, _ = scan_deps(self.repo)
+        self.assertEqual(0, code)  # no lockfiles -> nothing vulnerable
 
 
 if __name__ == "__main__":

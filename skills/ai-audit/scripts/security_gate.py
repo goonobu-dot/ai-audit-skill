@@ -307,6 +307,119 @@ def gate_commit(repo: Path | str) -> tuple[int, list[str]]:
     return 0, messages
 
 
+# --- P1: dependency SCA (osv-scanner) and SBOM (syft), machine-connected ---
+# These are read-only analyses of DEPENDENCIES; they never limit what the agent
+# can build. When the tool is absent we return a distinct "not-tested" code and
+# never claim "clean" (fail-closed on honesty, per the 3-AI council).
+
+# Exit codes for scan-deps / gen-sbom:
+#   0 = tool ran, no blocking finding
+#   1 = tool ran, blocking finding (Critical/High vuln)
+#   3 = tool not installed -> NOT-TESTED (caller must not treat as clean)
+
+SEVERITY_ORDER = {"CRITICAL": 4, "HIGH": 3, "MODERATE": 2, "MEDIUM": 2, "LOW": 1, "": 0}
+
+
+def _osv_severity(vuln: dict) -> str:
+    """Best-effort severity label from an OSV vulnerability object."""
+    best = ""
+    for entry in vuln.get("severity", []) or []:
+        # CVSS vectors -> coarse bucket; OSV also carries database_specific severity.
+        score = str(entry.get("score", ""))
+        if "CRITICAL" in score.upper():
+            return "CRITICAL"
+    db = (vuln.get("database_specific") or {}).get("severity", "")
+    if isinstance(db, str) and db.upper() in SEVERITY_ORDER:
+        best = db.upper()
+    return best
+
+
+def parse_osv_results(report: dict) -> list[dict]:
+    """Flatten osv-scanner JSON into a list of {package, id, severity, source}."""
+    findings: list[dict] = []
+    for result in report.get("results", []) or []:
+        source = (result.get("source") or {}).get("path", "?")
+        for pkg in result.get("packages", []) or []:
+            name = (pkg.get("package") or {}).get("name", "?")
+            version = (pkg.get("package") or {}).get("version", "?")
+            for vuln in pkg.get("vulnerabilities", []) or []:
+                findings.append({
+                    "package": f"{name}@{version}",
+                    "id": vuln.get("id", "?"),
+                    "severity": _osv_severity(vuln),
+                    "source": source,
+                })
+    return findings
+
+
+def _has_blocking(findings: list[dict]) -> bool:
+    return any(SEVERITY_ORDER.get(f.get("severity", ""), 0) >= 3 for f in findings)
+
+
+def scan_deps(repo: Path | str, results_path: Path | str | None = None) -> tuple[int, list[str]]:
+    """Grade dependency vulnerabilities. Returns (exit, msgs).
+
+    With ``results_path`` an existing osv-scanner JSON is graded (so CI can run
+    osv-scanner in a container and feed the report here). Otherwise the local
+    osv-scanner binary is invoked; if it is absent we return code 3 = NOT-TESTED
+    and never claim clean.
+    """
+    if results_path is not None:
+        try:
+            report = json.loads(Path(results_path).read_text(encoding="utf-8") or "{}")
+        except (OSError, json.JSONDecodeError) as error:
+            return 3, [f"NOT-TESTED: could not read osv results: {error}"]
+    else:
+        repo = Path(repo).resolve()
+        if shutil.which("osv-scanner") is None:
+            return 3, [
+                "NOT-TESTED: osv-scanner is not installed; dependency vulnerabilities were NOT checked.",
+                "Do not treat this as clean. Install it: brew install osv-scanner (Apache-2.0, offline DB supported).",
+            ]
+        proc = subprocess.run(
+            ["osv-scanner", "scan", "--format", "json", "-r", str(repo)],
+            capture_output=True, text=True,
+        )
+        # osv-scanner exits non-zero when vulns are found; JSON still on stdout.
+        try:
+            report = json.loads(proc.stdout or "{}")
+        except json.JSONDecodeError:
+            return 3, ["NOT-TESTED: could not parse osv-scanner output.", (proc.stderr or "").strip()[:300]]
+    findings = parse_osv_results(report)
+    if not findings:
+        return 0, ["osv-scanner: no known-vulnerable dependencies found (not exhaustive)."]
+    lines = [f"{f['severity'] or 'UNKNOWN'}  {f['package']}  {f['id']}  ({f['source']})" for f in findings]
+    if _has_blocking(findings):
+        return 1, ["BLOCKING: Critical/High dependency vulnerabilities found.", *lines[:20]]
+    return 0, ["dependency vulnerabilities found (below High; review):", *lines[:20]]
+
+
+def gen_sbom(repo: Path | str, output: Path | str) -> tuple[int, list[str]]:
+    """Generate a CycloneDX SBOM with syft. Returns (exit, msgs)."""
+    repo = Path(repo).resolve()
+    output = Path(output).resolve()
+    if shutil.which("syft") is None:
+        return 3, [
+            "NOT-TESTED: syft is not installed; no SBOM was generated.",
+            "Install it: brew install syft (Apache-2.0, offline for local filesystems).",
+        ]
+    output.parent.mkdir(parents=True, exist_ok=True)
+    proc = subprocess.run(
+        ["syft", f"dir:{repo}", "-o", "cyclonedx-json", "-q"],
+        capture_output=True, text=True,
+    )
+    if proc.returncode != 0:
+        return 3, ["NOT-TESTED: syft failed.", (proc.stderr or "").strip()[:300]]
+    output.write_text(proc.stdout, encoding="utf-8")
+    os.chmod(output, 0o600)
+    try:
+        doc = json.loads(proc.stdout or "{}")
+        n = len(doc.get("components", []) or [])
+    except json.JSONDecodeError:
+        n = 0
+    return 0, [f"SBOM written: {output}", f"components catalogued: {n} (CycloneDX-JSON)"]
+
+
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
@@ -319,6 +432,14 @@ def _build_parser() -> argparse.ArgumentParser:
 
     commit = sub.add_parser("gate-commit", help="block a commit that introduces a secret")
     commit.add_argument("repo", type=Path, nargs="?", default=Path("."))
+
+    sca = sub.add_parser("scan-deps", help="scan dependencies for known vulnerabilities (osv-scanner)")
+    sca.add_argument("repo", type=Path, nargs="?", default=Path("."))
+    sca.add_argument("--results", type=Path, help="grade an existing osv-scanner JSON instead of invoking the binary")
+
+    sbom = sub.add_parser("gen-sbom", help="generate a CycloneDX SBOM (syft)")
+    sbom.add_argument("repo", type=Path, nargs="?", default=Path("."))
+    sbom.add_argument("--output", type=Path, required=True)
     return parser
 
 
@@ -326,6 +447,10 @@ def main(argv: list[str] | None = None) -> int:
     args = _build_parser().parse_args(argv)
     if args.command == "build-prompt-bundle":
         code, messages = build_prompt_bundle(args.repo, args.output, args.mode, args.allow)
+    elif args.command == "scan-deps":
+        code, messages = scan_deps(args.repo, args.results)
+    elif args.command == "gen-sbom":
+        code, messages = gen_sbom(args.repo, args.output)
     else:
         code, messages = gate_commit(args.repo)
     stream = sys.stderr if code != 0 else sys.stdout

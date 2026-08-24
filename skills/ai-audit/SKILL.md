@@ -71,6 +71,17 @@ description: Use when a user asks to audit, inspect, accept, or produce an evide
 - 「生出力全文」ではなく「マスキング済み出力」を証拠とする。APIキー、トークン、パスワード、個人情報をプロンプトへ含めない。
 - **外部共有前**とコミット前に、成果物を再度シークレット・PIIスキャンする。検出が残れば公開しない。
 
+### 依存の脆弱性(SCA)とSBOM = 機械接続
+
+依存パッケージの既知脆弱性(CVE)とソフトウェア部品表(SBOM)を、文書でなく機械で取る。これらは依存の読み取り検査であり、実装能力を一切制限しない:
+
+```bash
+python3 "$SKILL_DIR/scripts/security_gate.py" scan-deps "$TARGET_ROOT"   # osv-scanner。Critical/Highで非ゼロ
+python3 "$SKILL_DIR/scripts/security_gate.py" gen-sbom "$TARGET_ROOT" --output "$OUTPUT_DIR/sbom.cdx.json"  # syft、CycloneDX
+```
+
+`scan-deps`は osv-scanner でlockfileを検査し、Critical/High脆弱性があれば非ゼロ(要修正)。`gen-sbom`は syft でCycloneDX SBOMを生成し監査bundleへ同梱・sealする。**ツール未導入時は exit 3 =「未検証(not-tested)」で返り、"clean"とは扱わない**(結論をconditional以下に固定する材料)。osv-scannerはオフラインDB運用可(既定は公開パッケージ名・版のみ問い合わせ、対象コードは送らない)。要求マトリクスでは AA-5.2(依存固定/SBOM)・AA-5.3(SCA・実在性)の証拠として台帳化する。
+
 最低限、秘密情報、外部通信、入力検証、認証認可、依存/CVE、ライセンス、仕様にない機能を確認する。検査開始前にAI-AUDIT統制の版付き全母集団と対象別必須母集団を`requirements-matrix.csv`へ置き、未実施・非適用・適用未確定も行として残す。非適用は理由と承認者を記録し、必須又はCriticalではowner自身の承認を使わない。実行コマンド、ツール版、終了コード、期待値、実測値、証拠ID・SHA-256、要求IDを調書へ記録する。
 
 ## Phase 2: 別系統AIレビュー
