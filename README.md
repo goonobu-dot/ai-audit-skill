@@ -117,6 +117,20 @@ cp -R skills/code-atlas ~/.agents/skills/
 
 営業先へそのまま提示できる説明、責任分界、納品物、第三者機関への引継ぎフローは[企業向け「セキュリティ・監査付き納品」の説明資料](https://goonobu-dot.github.io/ai-audit-skill/client-security-assurance.html)にまとめています。ブラウザから印刷・PDF保存できます。
 
+## 入口の機械ゲート(漏洩を"入る前"に止める)
+
+監査は事後の説明。漏洩は起きる前に止めるのが最も安いので、`scripts/security_gate.py` に決定論的な入口ゲートを2つ用意しています(AIの分析ではなく機械が止める)。
+
+```bash
+# コミット前ゲート: staged変更の秘密を gitleaks + パターンの両方で検査し、どちらかが見つけたら止める
+python3 scripts/security_gate.py gate-commit .
+
+# 外部AIへ渡す前のDLP: 既定は全文脈を送りつつ秘密・PIIをマスク(外部AIの能力を落とさず漏洩を防ぐ)
+python3 scripts/security_gate.py build-prompt-bundle <repo> --output <外部一時dir>
+```
+
+`gate-commit` は [templates/pre-commit-config-template.yaml](skills/ai-audit/templates/pre-commit-config-template.yaml) を `.pre-commit-config.yaml` として置けば毎コミット自動で走ります。`build-prompt-bundle` は「全部送るが秘密だけマスク(redact)」が既定で、機密性が極端に高いときだけ許可リスト方式(`--mode allowlist`)に切り替えます。秘密がマスクを生き延びたら束を作らず失敗します(fail-close)。
+
 ## 付属:code-atlas(コードを読めない人が中身を見る)
 
 `skills/code-atlas` は、コードを読めない人向けの2モードを持つ静的HTML生成スキルです。
@@ -144,7 +158,7 @@ critical-review は「見せかけの安心」を避ける設計憲法に従い�
 
 ## 重要な境界
 
-> Status: v1.3.1
+> Status: v1.5
 
 これは限定範囲の技術的検証です。認証、第三者保証、法定検査、App Store承認、契約検収、運転許可、安全性の保証を意味しません。
 

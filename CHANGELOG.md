@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.5.0 - 2026-08-24
+
+セキュリティ・監視・監査の強化。3社会議(Claude・Codex・Grok独立)+OSS徹底調査で「現状は事後の証跡が強く、防止・機械強制が弱い」と一致。CodexとGrokが独立に最優先で挙げた「入口の機械ゲート」を実装。文書だけだった防御を実際に動くコードにした。
+
+- **security_gate.py を新設(機械の入口ゲート2種)**
+  - `build-prompt-bundle`:外部LLM(Codex/Grok等)へコードを渡す前の送信前DLP。既定の redact モードは**全文脈を送りつつ秘密・PIIをマスク**(外部AIの能力を落とさず漏洩を防ぐ)。allowlist モードは許可パスのみ。秘密がredactを生き延びたら bundle を作らず fail-close。送信内容を transmission-ledger.json に台帳化。出力は0700/0600
+  - `gate-commit`:コミット前ゲート。gitleaks(あれば)+パターンの**両方**を走らせ、どちらかが秘密を見つけたら非ゼロで停止(両者は取りこぼす対象が異なるため union が安全 — 実測でハイフン付きトークンをgitleaksが見逃しパターンが捕捉)。PIIは誤検知回避のため警告のみ
+- **pre-commit 雛形を同梱**(templates/pre-commit-config-template.yaml):gitleaks + 同梱 gate-commit
+- **CIで実際にスキャナを実行**:validate.yml に gitleaks(全履歴、.gitleaks.toml準拠)を追加。「文書だけ」を機械強制へ
+- 回帰テスト+9(計68 guard/gateテスト)。PII赤字化はexample.com等を除外する保守的パターン
+- OSS調査の成果を security-brushup-synthesis.md に記録:採用候補(osv-scanner/syft/trivy/guarddog、いずれもApache-2.0・オフライン可)と、避けるべきもの(CodeQL=非公開コード有料、npm audit/ggshield=外部送信、Falco/Wazuh=個人に過剰)を一次確認。SCA/SBOM機械接続はP1として次段へ
+
 ## 1.4.0 - 2026-08-10
 
 非エンジニアが「全部を理解する」のでなく「事故のほぼ全てが通る急所だけを自分で検証する」ための code-atlas critical-review モードを追加。3社会議(Claude・Codex・Grok独立評価)で設計を確定。
