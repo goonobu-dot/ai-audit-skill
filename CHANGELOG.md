@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.7.0 - 2026-08-25
+
+各指摘に「発見の来歴(なぜ発見できたか)」を記録する仕組みを追加。3社会議(Claude・Codex・Grok独立)で設計を確定し、コードレビューの実証研究(Bacchelli&Bird, Edmundson, Mäntylä&Lassenius, Cisco/Cohen, Rigby&Bird)とAI企業の一次研究(LLM自己選好バイアス, Anthropic Sabotage/harness-design, OpenAI CriticGPT)で各項を接地。
+
+- **references/discovery-provenance.md を追加**:監査の5観点(lens: contract/execution/exposure/authority/independence)のゴール定義、人が構造的に見落とす4型(story-trust/sampling/single-tool-trust/negative-evidence)、認知的独立性が発見できる機序(assumption-free/uniform-sweep/full-context/evidence-conflict/execution-proof)、AIが弱い点、findingごとの来歴スキーマ
+- **報告書テンプレの指摘欄に来歴フィールド**(lens/why_found/human_blindspot/finder_class/reproduction)+発見の来歴サマリー(ai_cross件数の別掲)
+- **SKILL.md Phase 3 に来歴の記録を必須化**
+- 中核思想:「AIにしか見つけられない」でなく「認知的独立性(別系統・別手順・実行証拠が実装者の思い込みを共有しない)が破った見落とし」と正確に記述。`reproduction`の無い指摘は幻覚の疑いとして重大度を上げない。来歴の充実を安全の保証に読み替えない
+
 ## 1.6.0 - 2026-08-24
 
 依存の脆弱性(SCA)とSBOMを、文書でなく機械で取る(P1)。読み取り検査であり実装能力を一切制限しない。

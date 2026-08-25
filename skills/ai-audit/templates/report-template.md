@@ -70,9 +70,16 @@
 
 ## 7. 指摘・不適合・再検証
 
-| Finding ID | Requirement ID | 重大度 | 証拠 | 業務・安全影響 | 是正・commit | 再試験 | 状態 |
-|---|---|---|---|---|---|---|---|
-|  |  |  |  |  |  |  |  |
+各指摘は「何を(WHAT)」に加え、発見の来歴(なぜ発見できたか)を記録する。詳細と語彙は [references/discovery-provenance.md](../references/discovery-provenance.md)。
+
+| Finding ID | Requirement ID | 重大度 | 証拠 | 業務・安全影響 | 是正・commit | 再試験 | 状態 | lens | why_found | human_blindspot | finder_class | reproduction |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+|  |  |  |  |  |  |  |  |  |  |  |  |  |
+
+**発見の来歴サマリー**(集計):
+- `finder_class=ai_cross`(認知的独立性でのみ見つかった指摘)の件数:{N} — この監査の独自価値の本体。ただし「独立した認知が破った見落とし」と表現し、能力の誇示に使わない
+- `human_blindspot` の分布:{story-trust N / sampling N / single-tool-trust N / negative-evidence N} — このコードで人が最も落としやすい型
+- `reproduction` の無い指摘:{N}件 — 幻覚の疑いとして重大度を上げない
 
 ## 8. 未検証・非適用・残余リスク
 
