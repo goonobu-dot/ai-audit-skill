@@ -115,12 +115,12 @@ class RepositoryContractTests(unittest.TestCase):
         self.assertTrue((audit / "quality-profile.json").is_file())
         self.assertTrue((audit / "requirements-matrix.csv").is_file())
 
-    def test_public_docs_describe_v1_6_without_inflated_assurance_language(self):
+    def test_public_docs_describe_v1_7_without_inflated_assurance_language(self):
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
         manual = (ROOT / "docs" / "index.html").read_text(encoding="utf-8")
 
         for text in (readme, manual):
-            self.assertIn("v1.6", text)
+            self.assertIn("v1.7", text)
             self.assertIn("quality-profile.json", text)
             self.assertIn("requirements-matrix.csv", text)
             self.assertIn("安全関連", text)
