@@ -134,7 +134,6 @@ def build_prompt_bundle(
     allow_manifest: Path | str | None = None,
     destination: str | None = None,
     model: str | None = None,
-    force: bool = False,
 ) -> tuple[int, list[str]]:
     """Produce a leak-safe copy for an external LLM. Returns (exit_code, messages)."""
     repo = Path(repo).resolve()
@@ -169,10 +168,11 @@ def build_prompt_bundle(
     residual_secret_files: list[str] = []
     total_pii_masks = 0
 
-    # C4 fix (3-AI review 2026-08, Codex): NEVER recursively delete an arbitrary
-    # existing directory. Only overwrite a directory this tool itself created
-    # (identified by BUNDLE_MARKER), and only with --force. Refuse home/root,
-    # symlinks, non-directories, and any non-empty directory we did not create.
+    # C4 fix (3-AI review 2026-08): this tool NEVER deletes existing files. The
+    # earlier "delete only our own marked bundle" was unsafe — a marker file is
+    # trivially forged, so --force could still wipe arbitrary data (Grok re-audit).
+    # Policy: --output must be a new or already-empty directory. Refuse home/root,
+    # symlinks, non-directories, and any non-empty existing directory.
     if out_dir == Path.home() or out_dir == Path(out_dir.anchor):
         return 2, ["--output must not be your home directory or the filesystem root"]
     if out_dir.is_symlink():
@@ -180,20 +180,13 @@ def build_prompt_bundle(
     if out_dir.exists():
         if not out_dir.is_dir():
             return 2, [f"--output exists and is not a directory: {out_dir}"]
-        has_contents = any(out_dir.iterdir())
-        is_prior_bundle = (out_dir / BUNDLE_MARKER).is_file()
-        if has_contents and not is_prior_bundle:
+        if any(out_dir.iterdir()):
             return 2, [
-                f"--output already exists and is not an ai-audit bundle: {out_dir}",
-                "Refusing to delete it. Choose a new path; this tool creates the directory itself.",
+                f"--output already exists and is not empty: {out_dir}",
+                "Refusing to delete anything. Point --output at a new or empty path; "
+                "this tool never removes existing files.",
             ]
-        if has_contents and not force:
-            return 2, [
-                f"--output is a previous ai-audit bundle: {out_dir}",
-                "Pass --force to overwrite it.",
-            ]
-        shutil.rmtree(out_dir)
-    out_dir.mkdir(parents=True)
+    out_dir.mkdir(parents=True, exist_ok=True)
     os.chmod(out_dir, 0o700)
     (out_dir / BUNDLE_MARKER).write_text("ai-audit external-llm bundle\n", encoding="utf-8")
     os.chmod(out_dir / BUNDLE_MARKER, 0o600)
@@ -449,12 +442,19 @@ def _osv_severity(vuln: dict) -> str:
     findings are treated as blocking by the caller (fail-closed).
     """
     best_score = -1.0
+    saw_unparsable_cvss = False
     for entry in vuln.get("severity", []) or []:
         raw = str(entry.get("score", "")).strip()
         if not raw:
             continue
         if "CVSS:" in raw.upper() or "/AV:" in raw.upper():
+            # v3.x is scored exactly; v4 (and any unrecognised CVSS) is not graded
+            # here — but a CVSS score we cannot grade must NOT silently downgrade to
+            # a lower database_specific label (Grok re-audit 2026-08: CVSS_V4 9.x
+            # was read as LOW). Treat it as unknown → blocking below.
             score = _cvss3_base_from_vector(raw)
+            if score is None:
+                saw_unparsable_cvss = True
         else:
             try:
                 score = float(raw)
@@ -464,6 +464,8 @@ def _osv_severity(vuln: dict) -> str:
             best_score = score
     if best_score >= 0:
         return _bucket_from_score(best_score)
+    if saw_unparsable_cvss:
+        return ""  # a CVSS vector we could not grade → unknown → blocking
     db = (vuln.get("database_specific") or {}).get("severity", "")
     if isinstance(db, str) and db.upper() in SEVERITY_ORDER:
         return db.upper()
@@ -590,7 +592,6 @@ def _build_parser() -> argparse.ArgumentParser:
     bundle.add_argument("--allow", type=Path, help="allowlist manifest (allowlist mode)")
     bundle.add_argument("--destination", help="who the bundle is sent to (recorded in the ledger)")
     bundle.add_argument("--model", help="external model the bundle is sent to (recorded in the ledger)")
-    bundle.add_argument("--force", action="store_true", help="overwrite a previous ai-audit bundle at --output")
 
     commit = sub.add_parser("gate-commit", help="block a commit that introduces a secret")
     commit.add_argument("repo", type=Path, nargs="?", default=Path("."))
@@ -611,7 +612,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "build-prompt-bundle":
         code, messages = build_prompt_bundle(
             args.repo, args.output, args.mode, args.allow,
-            destination=args.destination, model=args.model, force=args.force,
+            destination=args.destination, model=args.model,
         )
     elif args.command == "scan-deps":
         code, messages = scan_deps(args.repo, args.results)

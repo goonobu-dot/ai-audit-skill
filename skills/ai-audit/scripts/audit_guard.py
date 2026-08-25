@@ -40,11 +40,22 @@ def _exclusion_root(entry: str) -> str:
 
 
 def _tampering_exclusions(exclusions: Iterable[str]) -> list[str]:
-    """Return exclusion roots that are NOT allowed (i.e. would hide real source)."""
-    bad = {
-        _exclusion_root(e) for e in exclusions
-        if _exclusion_root(e) and _exclusion_root(e) not in ALLOWED_SEAL_EXCLUSION_ROOTS
-    }
+    """Return exclusion entries that are NOT allowed (i.e. would hide real source).
+
+    Rejects absolute paths and any ``..`` traversal outright (Grok re-audit
+    2026-08), then requires the top path component to be an allowed generated dir.
+    """
+    bad: set[str] = set()
+    for entry in exclusions:
+        entry = entry.strip()
+        if not entry:
+            continue
+        if entry.startswith("/") or ".." in entry.split("/"):
+            bad.add(entry)
+            continue
+        root = _exclusion_root(entry)
+        if root and root not in ALLOWED_SEAL_EXCLUSION_ROOTS:
+            bad.add(root)
     return sorted(bad)
 CORE_STANDARDS = {
     "AI-AUDIT": "1.3.0",
@@ -461,10 +472,12 @@ def verify_atlas(atlas_path: Path | str, source_path: Path | str) -> list[str]:
                 f"stale cite {match.group(0)}: out of range (source has {n_lines} lines)"
             )
 
-    stated_counts = set()
-    for pat in (source_path.name + r"[・(](\d+)行", r"処理のすべて\((\d+)行\)"):
-        for match in re.finditer(pat, html):
-            stated_counts.add(int(match.group(1)))
+    # A stated line count near the basename must equal the real count. The window
+    # is non-digit chars only, so a cite like ``memo.py:57-68`` cannot bleed into a
+    # later number. Matches JP ``…189行`` and EN ``…189 lines`` (Grok re-audit
+    # 2026-08: ``memo.py(本体・190行)`` slipped past the previous narrow pattern).
+    count_re = re.compile(base + r"[^0-9\n]{0,40}?(\d+)\s*(?:行|lines?\b)")
+    stated_counts = {int(m.group(1)) for m in count_re.finditer(html)}
     for count in sorted(stated_counts):
         if count != n_lines:
             errors.append(f"stated line count {count} != actual {n_lines}")

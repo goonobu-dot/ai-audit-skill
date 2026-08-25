@@ -78,7 +78,7 @@ Audit the code and produce the report.
 `ai-audit` starts, and:
 
 1. 🔒 **Machine gates** — check for secret keys, personal data, and known-vulnerable dependencies (and honestly report NOT-TESTED when a dedicated tool isn't installed)
-2. 🔍 **Independent AI audit** — Codex and Grok hunt for defects using only the spec and the code, *without* the building AI's explanations
+2. 🔍 **Independent AI audit** — Codex and Grok hunt for defects using only the spec and the code, *without* the building AI's explanations (note: this "no explanations" independence is a discipline you follow, not something the machine enforces — auditing right after building in the same chat weakens it)
 3. 📋 **Evidence-backed report** — what was checked, what was found, what remains unverified — plus a tamper-evident seal
 
 ### To "finish it until it passes" (running the loop)

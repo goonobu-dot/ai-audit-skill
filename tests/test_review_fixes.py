@@ -58,18 +58,32 @@ class C4BundleDeletionTests(unittest.TestCase):
         code, msgs = sg.build_prompt_bundle(self.repo, out)
         self.assertEqual(2, code)
         self.assertTrue((out / "keep.txt").is_file(), "existing user data must survive")
-        self.assertTrue(any("not an ai-audit bundle" in m for m in msgs))
+        self.assertTrue(any("not empty" in m for m in msgs))
 
-    def test_overwrites_prior_bundle_only_with_force(self):
+    def test_refuses_nonempty_existing_dir_even_a_prior_bundle(self):
+        # A forgeable marker must not authorise deletion (Grok re-audit 2026-08):
+        # once --output is non-empty, a re-run is refused; use a new/empty path.
         out = self.root / "bundle"
         code, _ = sg.build_prompt_bundle(self.repo, out)
         self.assertEqual(0, code)
         self.assertTrue((out / sg.BUNDLE_MARKER).is_file())
-        # second run without force is refused; with force it succeeds
-        code, _ = sg.build_prompt_bundle(self.repo, out)
+        code, msgs = sg.build_prompt_bundle(self.repo, out)
         self.assertEqual(2, code)
-        code, _ = sg.build_prompt_bundle(self.repo, out, force=True)
+        self.assertTrue(any("not empty" in m for m in msgs))
+        # an empty pre-existing directory is fine
+        empty = self.root / "empty_out"
+        empty.mkdir()
+        code, _ = sg.build_prompt_bundle(self.repo, empty)
         self.assertEqual(0, code)
+
+    def test_forged_marker_does_not_enable_deletion(self):
+        victim = self.root / "victim"
+        victim.mkdir()
+        (victim / "photo.jpg").write_text("keep\n", encoding="utf-8")
+        (victim / sg.BUNDLE_MARKER).write_text("forged\n", encoding="utf-8")
+        code, _ = sg.build_prompt_bundle(self.repo, victim)
+        self.assertEqual(2, code)
+        self.assertTrue((victim / "photo.jpg").is_file())
 
     def test_ledger_records_destination_model_and_no_abspath(self):
         out = self.root / "bundle"
@@ -139,6 +153,29 @@ class C5ScanDepsTests(unittest.TestCase):
         }
         path = self.root / "u.json"
         path.write_text(json.dumps(report), encoding="utf-8")
+        code, _ = sg.scan_deps(self.root, results_path=path)
+        self.assertEqual(1, code)
+
+    def test_cvss_v4_unparsable_does_not_downgrade_to_low(self):
+        # CVSS_V4 is not graded here; it must become unknown (blocking), never fall
+        # back to a lower database_specific label (Grok re-audit 2026-08).
+        report = {
+            "results": [{
+                "source": {"path": "requirements.txt"},
+                "packages": [{
+                    "package": {"name": "evil4", "version": "1.0"},
+                    "vulnerabilities": [{
+                        "id": "OSV-V4",
+                        "severity": [{"type": "CVSS_V4",
+                                      "score": "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:N/SI:N/SA:N"}],
+                        "database_specific": {"severity": "LOW"},
+                    }],
+                }],
+            }],
+        }
+        path = self.root / "v4.json"
+        path.write_text(json.dumps(report), encoding="utf-8")
+        self.assertEqual("", sg.parse_osv_results(report)[0]["severity"])
         code, _ = sg.scan_deps(self.root, results_path=path)
         self.assertEqual(1, code)
 
@@ -251,6 +288,33 @@ class C7VerifyAtlasTests(unittest.TestCase):
         atlas = self.root / "atlas.html"
         atlas.write_text("<p>memo.py・20行, see memo.py:5-10</p>", encoding="utf-8")
         self.assertEqual([], ag.verify_atlas(atlas, self.src))
+
+    def test_parenthetical_and_english_counts_are_checked(self):
+        # "memo.py(本体・190行)" slipped past the earlier narrow pattern (Grok).
+        atlas = self.root / "atlas.html"
+        atlas.write_text("<td>memo.py(本体・190行)</td> and memo.py has 111 lines", encoding="utf-8")
+        errors = ag.verify_atlas(atlas, self.src)
+        self.assertTrue(any("190" in e for e in errors))
+        self.assertTrue(any("111" in e for e in errors))
+
+    def test_cite_digits_do_not_bleed_into_count(self):
+        atlas = self.root / "atlas.html"
+        atlas.write_text("see memo.py:5-10 then plain text 20行", encoding="utf-8")
+        # the '20行' is not adjacent to the basename through non-digits, so no false count
+        self.assertEqual([], ag.verify_atlas(atlas, self.src))
+
+
+class TamperingExclusionTests(unittest.TestCase):
+    """C6 hardening: exclusions with .. or absolute paths are rejected outright."""
+
+    def test_dotdot_traversal_is_flagged(self):
+        self.assertTrue(ag._tampering_exclusions(["audit/../../memo.py"]))
+
+    def test_absolute_path_is_flagged(self):
+        self.assertTrue(ag._tampering_exclusions(["/etc/passwd"]))
+
+    def test_generated_dirs_are_allowed(self):
+        self.assertEqual([], ag._tampering_exclusions(["audit/", "atlas/", "critical-review/"]))
 
 
 if __name__ == "__main__":
