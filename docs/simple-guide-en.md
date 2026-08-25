@@ -100,9 +100,15 @@ Then:
 2. 🔍 **Independent audit by other companies' AIs** — Codex (and Grok, if available) hunt for defects using only the spec and code, *without* the building AI's explanations
 3. 📋 **Evidence-backed report** — what was checked, what was found, what remains unverified
 
-### To "finish it until it passes"
+### What matters most: "loop until it passes" — the convergence loop
 
-Don't stop at one pass — loop until no serious findings remain: "audit" → **fix** the findings → "audit again (ideally with a different AI)."
+This is the other half of the tool. **Detection alone doesn't make code better.** What matters is:
+
+**audit → fix the findings → audit again (ideally with a different AI)** — repeated **until no serious findings remain.**
+
+We call this the convergence loop. Each round turns up fewer findings, until it settles. ai-audit itself was finished this way before launch — **three rounds** (round 1: critical bugs → fix; round 2: residual holes → fix; round 3: finer ones → fix, converging).
+
+> 💡 One catch: **looping "until the same AI goes quiet" over-fits to that AI's blind spots and backfires.** So separate **who fixes** from **who judges**, and ideally **rotate the auditor each round** (that's why a 2nd/3rd vendor helps). And never weaken a test just to pass.
 
 > 💡 Auditing uses external AI (your own Codex / Cursor subscription) — a slightly heavy step. When several rounds are likely, the AI first says "here's the scope, roughly this many rounds" before proceeding.
 
