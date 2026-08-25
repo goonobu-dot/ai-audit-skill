@@ -137,7 +137,8 @@ def build_prompt_bundle(
 ) -> tuple[int, list[str]]:
     """Produce a leak-safe copy for an external LLM. Returns (exit_code, messages)."""
     repo = Path(repo).resolve()
-    out_dir = Path(out_dir).resolve()
+    raw_out_dir = Path(out_dir)
+    out_dir = raw_out_dir.resolve()
     messages: list[str] = []
     if not repo.is_dir():
         return 2, [f"source repo is not a directory: {repo}"]
@@ -175,8 +176,10 @@ def build_prompt_bundle(
     # symlinks, non-directories, and any non-empty existing directory.
     if out_dir == Path.home() or out_dir == Path(out_dir.anchor):
         return 2, ["--output must not be your home directory or the filesystem root"]
-    if out_dir.is_symlink():
-        return 2, [f"--output must not be a symlink: {out_dir}"]
+    # Check the LEXICAL path for a symlink too: resolve() would silently follow it
+    # (Codex re-audit 2026-08: /var resolves to /private/var and hid the symlink).
+    if raw_out_dir.is_symlink() or out_dir.is_symlink():
+        return 2, [f"--output must not be a symlink: {raw_out_dir}"]
     if out_dir.exists():
         if not out_dir.is_dir():
             return 2, [f"--output exists and is not a directory: {out_dir}"]
@@ -186,6 +189,7 @@ def build_prompt_bundle(
                 "Refusing to delete anything. Point --output at a new or empty path; "
                 "this tool never removes existing files.",
             ]
+    dir_preexisted = out_dir.exists()
     out_dir.mkdir(parents=True, exist_ok=True)
     os.chmod(out_dir, 0o700)
     (out_dir / BUNDLE_MARKER).write_text("ai-audit external-llm bundle\n", encoding="utf-8")
@@ -222,7 +226,14 @@ def build_prompt_bundle(
         total_pii_masks += pii_masks
 
     if residual_secret_files:
-        shutil.rmtree(out_dir)
+        # Clean up only what THIS run created — never rmtree a directory the user
+        # may have created (Codex re-audit 2026-08). Remove written files + marker,
+        # then remove the directory only if we created it and it is now empty.
+        for entry in ledger_files:
+            (out_dir / entry["path"]).unlink(missing_ok=True)
+        (out_dir / BUNDLE_MARKER).unlink(missing_ok=True)
+        if not dir_preexisted:
+            shutil.rmtree(out_dir, ignore_errors=True)
         return 1, [
             "FAIL-CLOSED: a raw secret survived redaction; no bundle produced.",
             "files: " + ", ".join(residual_secret_files),
@@ -462,10 +473,14 @@ def _osv_severity(vuln: dict) -> str:
                 score = None
         if score is not None and score > best_score:
             best_score = score
+    # A CVSS vector we could not grade may be higher than any low numeric score on
+    # the same finding, so it must not be masked by that low score (Codex re-audit
+    # 2026-08: v4 vector + numeric 1.0 was read as LOW). If nothing parsed to at
+    # least HIGH, an ungradeable CVSS forces unknown → blocking.
+    if saw_unparsable_cvss and best_score < 7.0:
+        return ""
     if best_score >= 0:
         return _bucket_from_score(best_score)
-    if saw_unparsable_cvss:
-        return ""  # a CVSS vector we could not grade → unknown → blocking
     db = (vuln.get("database_specific") or {}).get("severity", "")
     if isinstance(db, str) and db.upper() in SEVERITY_ORDER:
         return db.upper()
@@ -494,6 +509,35 @@ def _has_blocking(findings: list[dict]) -> bool:
     return any(SEVERITY_ORDER.get(f.get("severity", ""), 0) >= 3 for f in findings)
 
 
+def _validate_osv_report(report: object) -> str | None:
+    """Return an error string if the OSV report is structurally invalid.
+
+    A malformed/forged report must be NOT-TESTED, never crash or read as clean
+    (Codex re-audit 2026-08: ``null``/``[{}]``/``{"results":["bad"]}`` slipped by).
+    """
+    if not isinstance(report, dict):
+        return "report is not a JSON object"
+    results = report.get("results")
+    if not isinstance(results, list):
+        return "'results' is not a list"
+    for result in results:
+        if not isinstance(result, dict):
+            return "a 'results' entry is not an object"
+        packages = result.get("packages", [])
+        if packages is not None and not isinstance(packages, list):
+            return "'packages' is not a list"
+        for pkg in packages or []:
+            if not isinstance(pkg, dict):
+                return "a 'packages' entry is not an object"
+            vulns = pkg.get("vulnerabilities", [])
+            if vulns is not None and not isinstance(vulns, list):
+                return "'vulnerabilities' is not a list"
+            for vuln in vulns or []:
+                if not isinstance(vuln, dict):
+                    return "a 'vulnerabilities' entry is not an object"
+    return None
+
+
 def scan_deps(repo: Path | str, results_path: Path | str | None = None) -> tuple[int, list[str]]:
     """Grade dependency vulnerabilities. Returns (exit, msgs).
 
@@ -515,6 +559,9 @@ def scan_deps(repo: Path | str, results_path: Path | str | None = None) -> tuple
                 "NOT-TESTED: osv results are empty or missing the 'results' key "
                 "(the scanner did not run). Do NOT treat this as clean.",
             ]
+        malformed = _validate_osv_report(report)
+        if malformed:
+            return 3, [f"NOT-TESTED: malformed osv results ({malformed}); not a clean result."]
     else:
         repo = Path(repo).resolve()
         if shutil.which("osv-scanner") is None:
@@ -543,6 +590,9 @@ def scan_deps(repo: Path | str, results_path: Path | str | None = None) -> tuple
             report = json.loads(proc.stdout or "{}")
         except json.JSONDecodeError:
             return 3, ["NOT-TESTED: could not parse osv-scanner output.", (proc.stderr or "").strip()[:300]]
+        malformed = _validate_osv_report(report)
+        if malformed:
+            return 3, [f"NOT-TESTED: malformed osv-scanner output ({malformed})."]
     findings = parse_osv_results(report)
     if not findings:
         return 0, ["osv-scanner: no known-vulnerable dependencies found (not exhaustive)."]

@@ -179,6 +179,35 @@ class C5ScanDepsTests(unittest.TestCase):
         code, _ = sg.scan_deps(self.root, results_path=path)
         self.assertEqual(1, code)
 
+    def test_unparsable_cvss_with_low_numeric_still_blocks(self):
+        # compound severity: an ungradeable CVSS must not be masked by a low number
+        report = {"results": [{"source": {"path": "r"}, "packages": [{
+            "package": {"name": "x", "version": "1"}, "vulnerabilities": [{
+                "id": "M", "severity": [
+                    {"type": "CVSS_V4", "score": "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:N/SI:N/SA:N"},
+                    {"type": "CVSS_V3", "score": "1.0"},
+                ]}]}]}]}
+        path = self.root / "cmp.json"
+        path.write_text(json.dumps(report), encoding="utf-8")
+        self.assertEqual(1, sg.scan_deps(self.root, results_path=path)[0])
+
+    def test_malformed_reports_are_not_tested(self):
+        for label, payload in (
+            ("null", "null"),
+            ("list", "[{}]"),
+            ("bad-result", '{"results":["bad"]}'),
+            ("bad-package", '{"results":[{"packages":["x"]}]}'),
+        ):
+            path = self.root / f"{label}.json"
+            path.write_text(payload, encoding="utf-8")
+            code, _ = sg.scan_deps(self.root, results_path=path)
+            self.assertEqual(3, code, f"{label} should be NOT-TESTED")
+
+    def test_empty_results_array_is_clean(self):
+        path = self.root / "clean.json"
+        path.write_text('{"results":[]}', encoding="utf-8")
+        self.assertEqual(0, sg.scan_deps(self.root, results_path=path)[0])
+
     def test_cvss_base_score_math(self):
         self.assertEqual(9.8, sg._cvss3_base_from_vector("CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"))
         self.assertEqual(10.0, sg._cvss3_base_from_vector("CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H"))
@@ -249,15 +278,31 @@ class C6SealHollowingTests(unittest.TestCase):
         errors = ag.verify_seal(self.repo, path)
         self.assertTrue(any("zero files" in e for e in errors))
 
-    def test_create_seal_refuses_source_exclusion(self):
+    def _init_repo_with_source(self):
         subprocess.run(["git", "init", "-b", "main"], cwd=self.repo, check=True, capture_output=True)
         subprocess.run(["git", "config", "user.email", "t@example.invalid"], cwd=self.repo, check=True)
         subprocess.run(["git", "config", "user.name", "t"], cwd=self.repo, check=True)
         (self.repo / "app.py").write_text("x = 1\n", encoding="utf-8")
         subprocess.run(["git", "add", "app.py"], cwd=self.repo, check=True)
         subprocess.run(["git", "commit", "-m", "init"], cwd=self.repo, check=True, capture_output=True)
+
+    def test_create_seal_refuses_source_exclusion(self):
+        self._init_repo_with_source()
         with self.assertRaises(ValueError):
             ag.create_seal(self.repo, self.repo / "audit" / "seal.json", exclusions=["app.py"])
+
+    def test_create_seal_refuses_zero_file_seal(self):
+        # excluding all real source via an allowed generated-dir name → zero files
+        self._init_repo_with_source()
+        (self.repo / "audit").mkdir()
+        (self.repo / "audit" / "app.py").write_text("x = 1\n", encoding="utf-8")
+        # move the only source under audit/ and exclude audit/ -> zero coverage
+        (self.repo / "app.py").unlink()
+        subprocess.run(["git", "rm", "app.py"], cwd=self.repo, check=True, capture_output=True)
+        subprocess.run(["git", "add", "-A"], cwd=self.repo, check=True)
+        subprocess.run(["git", "commit", "-m", "move"], cwd=self.repo, check=True, capture_output=True)
+        with self.assertRaises(ValueError):
+            ag.create_seal(self.repo, self.repo / "audit" / "seal.json", exclusions=["audit/"])
 
 
 class C7VerifyAtlasTests(unittest.TestCase):

@@ -129,7 +129,7 @@ codex exec resume -c 'sandbox_mode="read-only"' <SESSION_ID> \
 
 ## Phase 3: 判定と修正提案
 
-指摘ごとに内部要求ID、外部基準の出典・版・要求ID、重大度、`file:line`、証拠、業務影響、修正案、該当するCWE/OWASPを記録する。**併せて「発見の来歴」(なぜ発見できたか)を記録する**:core必須5項目=`lens_id`(観点)/`why_found`(発見の機序)/`human_blindspot`(人なら見落とす型)/`finder_class`(ai_cross=認知的独立でのみ / ai_or_human / tool_only)/`reproduction`(再現最小コマンド。無ければ幻覚の疑いとして重大度を上げない)。語彙と設計は [references/discovery-provenance.md](references/discovery-provenance.md) に従う。「AIにしか」でなく「認知的独立性が破った見落とし」と正確に記述し、来歴の充実を安全の保証に読み替えない。Critical/Importantがあっても `audit-only` では変更しない。修正を希望された場合だけ、承認範囲を確認して `remediation` へ移る。
+指摘ごとに内部要求ID、外部基準の出典・版・要求ID、重大度、`file:line`、証拠、業務影響、修正案、該当するCWE/OWASPを記録する。**併せて「発見の来歴」(なぜ発見できたか)を記録する**:5項目=`lens_id`(観点)/`why_found`(発見の機序)/`human_blindspot`(人なら見落とす型)/`finder_class`(ai_cross=認知的独立でのみ / ai_or_human / tool_only)/`reproduction`(再現最小コマンド。無ければ幻覚の疑いとして重大度を上げない)。語彙と設計は [references/discovery-provenance.md](references/discovery-provenance.md) に従う。**これは運用上の記録規律であって機械強制ではない**(validatorは来歴5項目のschemaまでは検査しない。`finder_class=ai_cross`件数を安全の根拠に読み替えない)。「AIにしか」でなく「認知的独立性が破った見落とし」と正確に記述し、来歴の充実を安全の保証に読み替えない。Critical/Importantがあっても `audit-only` では変更しない。修正を希望された場合だけ、承認範囲を確認して `remediation` へ移る。
 
 修正後は同一 `<SESSION_ID>` で全対象を再検証し、各指摘を「解消・残存・新規」に分ける。上限5周。未解消は理由と残余リスクを報告する。技術評価結論は手書きせず、`requirements-matrix.csv`からガードが算出する`acceptable-within-scope`、`conditional`、`not-acceptable`のいずれかを使う。
 

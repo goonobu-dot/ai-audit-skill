@@ -35,21 +35,28 @@ jobs:
             examples/memo-tool/atlas/index.html examples/memo-tool/memo.py
           python3 scripts/audit_guard.py verify-atlas \
             examples/memo-tool/critical-review/index.html examples/memo-tool/memo.py
-      - name: Secret scan (gitleaks, whole history)
-        # Machine-enforced, not doc-only: gitleaks scans the repo (respecting the
-        # committed .gitleaks.toml allowlist of intentional test fixtures) and fails
-        # CI on any real leak (3-AI review 2026-08).
+      - name: Secret scan (gitleaks, whole git history)
+        # Machine-enforced, not doc-only. Uses `git` (not `dir`) so the WHOLE
+        # history is scanned, incl. secrets that were later removed from the tree
+        # (Codex re-audit 2026-08). Container is hardened: read-only mount, no
+        # network, all caps dropped, no privilege escalation. Respects the
+        # committed .gitleaks.toml allowlist of intentional test fixtures.
         run: |
-          docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:v8.30.1 \
-            dir /repo --no-banner --config /repo/.gitleaks.toml
+          docker run --rm --network none --read-only --tmpfs /tmp --cap-drop=ALL \
+            --security-opt no-new-privileges -v "$PWD:/repo:ro" \
+            ghcr.io/gitleaks/gitleaks:v8.30.1 \
+            git /repo --no-banner --config /repo/.gitleaks.toml
       - name: Dependency vulnerability scan (osv-scanner)
-        # Machine-connected SCA: osv-scanner runs in a pinned container and its
-        # JSON is graded by the bundled scan-deps, which fails CI on Critical/High.
+        # Machine-connected SCA: osv-scanner runs in a pinned, hardened container
+        # (read-only mount, caps dropped, no privilege escalation) and its JSON is
+        # graded by the bundled scan-deps, which fails CI on Critical/High.
         # A scanner CRASH must NOT be read as clean (3-AI review 2026-08, Codex):
         # exit 128 = no packages to scan (pass); any other non-0/1 = fail the job.
+        # NOTE: images are tag-pinned; digest-pinning is a tracked follow-up.
         run: |
           set +e
-          docker run --rm -v "$PWD:/repo" ghcr.io/google/osv-scanner:v2.5.1 \
+          docker run --rm --cap-drop=ALL --security-opt no-new-privileges \
+            -v "$PWD:/repo:ro" ghcr.io/google/osv-scanner:v2.5.1 \
             scan --format json -r /repo > /tmp/osv.json 2>/tmp/osv.err
           rc=$?
           set -e

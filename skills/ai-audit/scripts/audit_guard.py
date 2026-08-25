@@ -376,6 +376,11 @@ def create_seal(
         if not candidate.is_file():
             raise ValueError(f"tracked non-file entry is not sealable: {path}")
         artifacts[path] = _sha256(candidate)
+    if not artifacts:
+        raise ValueError(
+            "create-seal: refusing to write a seal that covers zero files "
+            "(scope hollowed). Check the target and exclusions."
+        )
     manifest = json.dumps(artifacts, sort_keys=True, separators=(",", ":")).encode("utf-8")
     seal: dict[str, object] = {
         "schema_version": SCHEMA_VERSION,
@@ -444,11 +449,13 @@ def verify_atlas(atlas_path: Path | str, source_path: Path | str) -> list[str]:
     """Check that a generated code-atlas/critical-review view is not stale.
 
     Generated views are excluded from the seal (they are derived, not source), so
-    the seal cannot catch them drifting from the code. This machine check does:
-    every ``<basename>:START-END`` evidence cite must reference lines that exist in
-    the current source; any stated line count and any ``sha256:`` recorded for the
-    source must match the current file. Closes the "stale atlas shown as
-    machine-verified" finding (3-AI review 2026-08, Codex/Grok).
+    the seal cannot catch them drifting from the code. This machine check verifies
+    STRUCTURE, not verbatim wording: the view must carry at least one
+    ``<basename>:START-END`` cite; every cite must reference lines that exist; any
+    stated line count and any recorded ``sha256:`` must match the current source.
+    It does NOT claim the quoted text is byte-identical to the source (a readable
+    atlas reformats code) — that fidelity is confirmed by a human / independent AI.
+    Closes the "stale atlas shown as machine-verified" finding (3-AI review 2026-08).
     """
     atlas_path = Path(atlas_path).resolve()
     source_path = Path(source_path).resolve()
@@ -460,11 +467,16 @@ def verify_atlas(atlas_path: Path | str, source_path: Path | str) -> list[str]:
         source_bytes = source_path.read_bytes()
     except OSError as error:
         return [f"cannot read source: {error}"]
-    n_lines = len(source_bytes.decode("utf-8", errors="replace").splitlines())
+    source_lines = source_bytes.decode("utf-8", errors="replace").splitlines()
+    n_lines = len(source_lines)
     base = re.escape(source_path.name)
     errors: list[str] = []
 
-    for match in re.finditer(base + r":(\d+)(?:-(\d+))?", html):
+    cite_re = re.compile(base + r":(\d+)(?:-(\d+))?")
+    cites = list(cite_re.finditer(html))
+    if not cites:
+        errors.append(f"no evidence cites ({source_path.name}:START-END) found in the view")
+    for match in cites:
         start = int(match.group(1))
         end = int(match.group(2)) if match.group(2) else start
         if start < 1 or start > end or end > n_lines:
