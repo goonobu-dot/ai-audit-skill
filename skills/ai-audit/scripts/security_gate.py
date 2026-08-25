@@ -124,11 +124,17 @@ def _iter_candidate_files(repo: Path, allow: set[str] | None):
         yield rel_posix, path
 
 
+BUNDLE_MARKER = ".ai-audit-bundle"
+
+
 def build_prompt_bundle(
     repo: Path | str,
     out_dir: Path | str,
     mode: str = "redact",
     allow_manifest: Path | str | None = None,
+    destination: str | None = None,
+    model: str | None = None,
+    force: bool = False,
 ) -> tuple[int, list[str]]:
     """Produce a leak-safe copy for an external LLM. Returns (exit_code, messages)."""
     repo = Path(repo).resolve()
@@ -163,10 +169,34 @@ def build_prompt_bundle(
     residual_secret_files: list[str] = []
     total_pii_masks = 0
 
+    # C4 fix (3-AI review 2026-08, Codex): NEVER recursively delete an arbitrary
+    # existing directory. Only overwrite a directory this tool itself created
+    # (identified by BUNDLE_MARKER), and only with --force. Refuse home/root,
+    # symlinks, non-directories, and any non-empty directory we did not create.
+    if out_dir == Path.home() or out_dir == Path(out_dir.anchor):
+        return 2, ["--output must not be your home directory or the filesystem root"]
+    if out_dir.is_symlink():
+        return 2, [f"--output must not be a symlink: {out_dir}"]
     if out_dir.exists():
+        if not out_dir.is_dir():
+            return 2, [f"--output exists and is not a directory: {out_dir}"]
+        has_contents = any(out_dir.iterdir())
+        is_prior_bundle = (out_dir / BUNDLE_MARKER).is_file()
+        if has_contents and not is_prior_bundle:
+            return 2, [
+                f"--output already exists and is not an ai-audit bundle: {out_dir}",
+                "Refusing to delete it. Choose a new path; this tool creates the directory itself.",
+            ]
+        if has_contents and not force:
+            return 2, [
+                f"--output is a previous ai-audit bundle: {out_dir}",
+                "Pass --force to overwrite it.",
+            ]
         shutil.rmtree(out_dir)
     out_dir.mkdir(parents=True)
     os.chmod(out_dir, 0o700)
+    (out_dir / BUNDLE_MARKER).write_text("ai-audit external-llm bundle\n", encoding="utf-8")
+    os.chmod(out_dir / BUNDLE_MARKER, 0o600)
 
     for rel_posix, path in _iter_candidate_files(repo, allow):
         raw = path.read_bytes()
@@ -179,7 +209,8 @@ def build_prompt_bundle(
             excluded_binaries.append(f"{rel_posix} (binary/non-utf8)")
             continue
         before_secret = _contains_raw_secret(text) or redact_text(text) != text
-        redacted = redact_text(text)
+        # external=True: leave NO SHA fingerprint in a bundle that leaves the boundary.
+        redacted = redact_text(text, external=True)
         redacted, pii_masks = redact_pii(redacted)
         # Fail-closed check: a raw secret must not survive redaction.
         if _contains_raw_secret(redacted):
@@ -206,14 +237,21 @@ def build_prompt_bundle(
         ]
 
     ledger = {
-        "schema_version": 1,
+        "schema_version": 2,
         "kind": "external-llm-transmission-ledger",
         "mode": mode,
         "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-        "source_repo": str(repo),
+        # Accountability without leakage: record who/what this is going to, but never
+        # the terminal's absolute source path (3-AI review 2026-08: Codex/Grok).
+        "source_repo_name": repo.name,
+        "destination": destination or "unspecified",
+        "model": model or "unspecified",
         "note": (
-            "Pattern-based redaction only (secrets via audit_guard, PII conservative). "
-            "Not exhaustive: dedicated PII (Presidio) is a future upgrade. Review before sending."
+            "Pattern-based redaction only (known secret patterns via audit_guard, "
+            "conservative PII). NOT exhaustive: unknown-format secrets, names, "
+            "addresses, and business-confidential text can survive. A human MUST "
+            "review this bundle before sending, and confirm the code itself is not "
+            "confidential. Dedicated PII (Presidio) is a future upgrade."
         ),
         "files_included": len(ledger_files),
         "pii_masks_total": total_pii_masks,
@@ -229,7 +267,13 @@ def build_prompt_bundle(
     messages.append(f"included {len(ledger_files)} file(s), masked {total_pii_masks} PII span(s), mode={mode}")
     if excluded_binaries:
         messages.append(f"excluded (not sent): {len(excluded_binaries)} binary/oversize file(s)")
-    messages.append("ledger: transmission-ledger.json (what will be sent). Review before handing to an external AI.")
+    if not destination or not model:
+        messages.append("NOTE: --destination/--model not given; recorded as 'unspecified' in the ledger.")
+    messages.append(
+        "Redaction masks KNOWN secret/PII patterns only — it is NOT exhaustive. "
+        "A human must review transmission-ledger.json (and the files) before sending, "
+        "and confirm the code itself is not confidential."
+    )
     return 0, messages
 
 
@@ -256,7 +300,7 @@ def _staged_added_lines(repo: Path) -> list[tuple[str, str]]:
     return pairs
 
 
-def gate_commit(repo: Path | str) -> tuple[int, list[str]]:
+def gate_commit(repo: Path | str, strict: bool = False) -> tuple[int, list[str]]:
     """Block a commit about to introduce a real secret. Returns (exit, msgs).
 
     Defense in depth: gitleaks (when installed) AND the bundled pattern engine are
@@ -264,6 +308,10 @@ def gate_commit(repo: Path | str) -> tuple[int, list[str]]:
     different things (3-AI review 2026-08: a hyphenated ``sk-live-`` token was
     missed by gitleaks but caught by the patterns), so their union is safer than
     trusting one alone.
+
+    Honesty (3-AI review 2026-08, Grok): when gitleaks is absent the pattern engine
+    alone is NOT authoritative. The clean result is reported as NOT-TESTED, and in
+    ``strict`` mode (for CI) returns exit 3 rather than a reassuring exit 0.
     """
     repo = Path(repo).resolve()
     messages: list[str] = []
@@ -303,7 +351,15 @@ def gate_commit(repo: Path | str) -> tuple[int, list[str]]:
     pii_hits = {fname for fname, line in added if _contains_pii(line)}
     if pii_hits:
         messages.append(f"WARNING (not blocking): possible PII in staged changes: {', '.join(sorted(pii_hits)[:6])}")
-    messages.append("gate-commit: no secret detected (not exhaustive).")
+    if not has_gitleaks:
+        messages.append(
+            "NOT-TESTED by an authoritative scanner: pattern detection found nothing, "
+            "but this is not a clean bill of health (install gitleaks)."
+        )
+        if strict:
+            return 3, messages
+        return 0, messages
+    messages.append("gate-commit: no secret detected by gitleaks + patterns (not exhaustive).")
     return 0, messages
 
 
@@ -317,21 +373,101 @@ def gate_commit(repo: Path | str) -> tuple[int, list[str]]:
 #   1 = tool ran, blocking finding (Critical/High vuln)
 #   3 = tool not installed -> NOT-TESTED (caller must not treat as clean)
 
-SEVERITY_ORDER = {"CRITICAL": 4, "HIGH": 3, "MODERATE": 2, "MEDIUM": 2, "LOW": 1, "": 0}
+SEVERITY_ORDER = {"CRITICAL": 4, "HIGH": 3, "MODERATE": 2, "MEDIUM": 2, "LOW": 1, "NONE": 0, "": 0}
+
+# --- CVSS v3.x base-score parsing (deterministic; fixes the "CVSS 9.8 read as
+# UNKNOWN and passed" fail-open found by Codex in the 3-AI review 2026-08) ---
+_CVSS3_WEIGHTS = {
+    "AV": {"N": 0.85, "A": 0.62, "L": 0.55, "P": 0.2},
+    "AC": {"L": 0.77, "H": 0.44},
+    "PR_U": {"N": 0.85, "L": 0.62, "H": 0.27},
+    "PR_C": {"N": 0.85, "L": 0.68, "H": 0.5},
+    "UI": {"N": 0.85, "R": 0.62},
+    "CIA": {"H": 0.56, "L": 0.22, "N": 0.0},
+}
+
+
+def _cvss3_roundup(value: float) -> float:
+    """Official CVSS v3.1 roundup (to one decimal)."""
+    int_input = round(value * 100000)
+    if int_input % 10000 == 0:
+        return int_input / 100000.0
+    return (int(int_input / 10000) + 1) / 10.0
+
+
+def _cvss3_base_from_vector(vector: str) -> float | None:
+    """Compute a CVSS v3.0/3.1 base score from its vector string, or None."""
+    metrics: dict[str, str] = {}
+    for part in vector.split("/"):
+        if ":" in part:
+            key, _, val = part.partition(":")
+            metrics[key.strip().upper()] = val.strip().upper()
+    required = ("AV", "AC", "PR", "UI", "S", "C", "I", "A")
+    if not all(k in metrics for k in required):
+        return None
+    try:
+        scope_changed = metrics["S"] == "C"
+        av = _CVSS3_WEIGHTS["AV"][metrics["AV"]]
+        ac = _CVSS3_WEIGHTS["AC"][metrics["AC"]]
+        pr = _CVSS3_WEIGHTS["PR_C" if scope_changed else "PR_U"][metrics["PR"]]
+        ui = _CVSS3_WEIGHTS["UI"][metrics["UI"]]
+        conf = _CVSS3_WEIGHTS["CIA"][metrics["C"]]
+        integ = _CVSS3_WEIGHTS["CIA"][metrics["I"]]
+        avail = _CVSS3_WEIGHTS["CIA"][metrics["A"]]
+    except KeyError:
+        return None
+    iss = 1 - ((1 - conf) * (1 - integ) * (1 - avail))
+    if scope_changed:
+        impact = 7.52 * (iss - 0.029) - 3.25 * (iss - 0.02) ** 15
+    else:
+        impact = 6.42 * iss
+    exploitability = 8.22 * av * ac * pr * ui
+    if impact <= 0:
+        return 0.0
+    if scope_changed:
+        return _cvss3_roundup(min(1.08 * (impact + exploitability), 10))
+    return _cvss3_roundup(min(impact + exploitability, 10))
+
+
+def _bucket_from_score(score: float) -> str:
+    if score >= 9.0:
+        return "CRITICAL"
+    if score >= 7.0:
+        return "HIGH"
+    if score >= 4.0:
+        return "MEDIUM"
+    if score > 0.0:
+        return "LOW"
+    return "NONE"
 
 
 def _osv_severity(vuln: dict) -> str:
-    """Best-effort severity label from an OSV vulnerability object."""
-    best = ""
+    """Severity label from an OSV vulnerability object.
+
+    Parses CVSS vectors and numeric scores; falls back to database_specific.
+    Returns "" (unknown) only when nothing parses — and unknown-but-present
+    findings are treated as blocking by the caller (fail-closed).
+    """
+    best_score = -1.0
     for entry in vuln.get("severity", []) or []:
-        # CVSS vectors -> coarse bucket; OSV also carries database_specific severity.
-        score = str(entry.get("score", ""))
-        if "CRITICAL" in score.upper():
-            return "CRITICAL"
+        raw = str(entry.get("score", "")).strip()
+        if not raw:
+            continue
+        if "CVSS:" in raw.upper() or "/AV:" in raw.upper():
+            score = _cvss3_base_from_vector(raw)
+        else:
+            try:
+                score = float(raw)
+            except ValueError:
+                score = None
+        if score is not None and score > best_score:
+            best_score = score
+    if best_score >= 0:
+        return _bucket_from_score(best_score)
     db = (vuln.get("database_specific") or {}).get("severity", "")
     if isinstance(db, str) and db.upper() in SEVERITY_ORDER:
-        best = db.upper()
-    return best
+        return db.upper()
+    return ""
 
 
 def parse_osv_results(report: dict) -> list[dict]:
@@ -366,9 +502,17 @@ def scan_deps(repo: Path | str, results_path: Path | str | None = None) -> tuple
     """
     if results_path is not None:
         try:
-            report = json.loads(Path(results_path).read_text(encoding="utf-8") or "{}")
+            raw = Path(results_path).read_text(encoding="utf-8")
+            report = json.loads(raw) if raw.strip() else {}
         except (OSError, json.JSONDecodeError) as error:
             return 3, [f"NOT-TESTED: could not read osv results: {error}"]
+        # C5 fix (3-AI review 2026-08, Codex): an empty file / missing "results"
+        # key means the scanner did NOT actually run. Never read that as clean.
+        if not isinstance(report, dict) or "results" not in report:
+            return 3, [
+                "NOT-TESTED: osv results are empty or missing the 'results' key "
+                "(the scanner did not run). Do NOT treat this as clean.",
+            ]
     else:
         repo = Path(repo).resolve()
         if shutil.which("osv-scanner") is None:
@@ -380,7 +524,19 @@ def scan_deps(repo: Path | str, results_path: Path | str | None = None) -> tuple
             ["osv-scanner", "scan", "--format", "json", "-r", str(repo)],
             capture_output=True, text=True,
         )
-        # osv-scanner exits non-zero when vulns are found; JSON still on stdout.
+        # osv-scanner exit codes: 0 = no vuln, 1 = vuln found, 128 = no packages
+        # found (nothing to scan), anything else = scanner error.
+        if proc.returncode == 128:
+            return 0, [
+                "osv-scanner: no dependency manifests found; nothing to scan "
+                "(this is NOT a clearance for vendored/copied-in code)."
+            ]
+        if proc.returncode not in (0, 1):
+            return 3, [
+                f"NOT-TESTED: osv-scanner failed (exit {proc.returncode}); not a clean result.",
+                (proc.stderr or "").strip()[:300],
+            ]
+        # returncode 0/1 proves the scanner actually ran; parse its report.
         try:
             report = json.loads(proc.stdout or "{}")
         except json.JSONDecodeError:
@@ -389,8 +545,11 @@ def scan_deps(repo: Path | str, results_path: Path | str | None = None) -> tuple
     if not findings:
         return 0, ["osv-scanner: no known-vulnerable dependencies found (not exhaustive)."]
     lines = [f"{f['severity'] or 'UNKNOWN'}  {f['package']}  {f['id']}  ({f['source']})" for f in findings]
-    if _has_blocking(findings):
-        return 1, ["BLOCKING: Critical/High dependency vulnerabilities found.", *lines[:20]]
+    # Fail-closed: any finding whose severity could not be determined is blocking.
+    unknown = [f for f in findings if not f.get("severity")]
+    if _has_blocking(findings) or unknown:
+        reason = "Critical/High" if _has_blocking(findings) else "unknown-severity (treated as blocking)"
+        return 1, [f"BLOCKING: {reason} dependency vulnerabilities found.", *lines[:20]]
     return 0, ["dependency vulnerabilities found (below High; review):", *lines[:20]]
 
 
@@ -426,12 +585,16 @@ def _build_parser() -> argparse.ArgumentParser:
 
     bundle = sub.add_parser("build-prompt-bundle", help="prepare a leak-safe copy for an external LLM")
     bundle.add_argument("repo", type=Path)
-    bundle.add_argument("--output", type=Path, required=True, help="bundle output dir (must be outside repo)")
+    bundle.add_argument("--output", type=Path, required=True, help="bundle output dir (must be a new/empty path outside repo)")
     bundle.add_argument("--mode", choices=["redact", "allowlist"], default="redact")
     bundle.add_argument("--allow", type=Path, help="allowlist manifest (allowlist mode)")
+    bundle.add_argument("--destination", help="who the bundle is sent to (recorded in the ledger)")
+    bundle.add_argument("--model", help="external model the bundle is sent to (recorded in the ledger)")
+    bundle.add_argument("--force", action="store_true", help="overwrite a previous ai-audit bundle at --output")
 
     commit = sub.add_parser("gate-commit", help="block a commit that introduces a secret")
     commit.add_argument("repo", type=Path, nargs="?", default=Path("."))
+    commit.add_argument("--strict", action="store_true", help="exit 3 (NOT-TESTED) when gitleaks is absent (for CI)")
 
     sca = sub.add_parser("scan-deps", help="scan dependencies for known vulnerabilities (osv-scanner)")
     sca.add_argument("repo", type=Path, nargs="?", default=Path("."))
@@ -446,13 +609,16 @@ def _build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     args = _build_parser().parse_args(argv)
     if args.command == "build-prompt-bundle":
-        code, messages = build_prompt_bundle(args.repo, args.output, args.mode, args.allow)
+        code, messages = build_prompt_bundle(
+            args.repo, args.output, args.mode, args.allow,
+            destination=args.destination, model=args.model, force=args.force,
+        )
     elif args.command == "scan-deps":
         code, messages = scan_deps(args.repo, args.results)
     elif args.command == "gen-sbom":
         code, messages = gen_sbom(args.repo, args.output)
     else:
-        code, messages = gate_commit(args.repo)
+        code, messages = gate_commit(args.repo, strict=args.strict)
     stream = sys.stderr if code != 0 else sys.stdout
     for m in messages:
         print(m, file=stream)

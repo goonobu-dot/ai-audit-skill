@@ -23,6 +23,7 @@ SPEC.loader.exec_module(MODULE)
 redact_text = MODULE.redact_text
 create_seal = MODULE.create_seal
 verify_seal = MODULE.verify_seal
+verify_atlas = MODULE.verify_atlas
 validate_bundle = MODULE.validate_bundle
 validate_quality_package = MODULE.validate_quality_package
 validate_report_consistency = MODULE.validate_report_consistency

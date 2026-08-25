@@ -24,6 +24,24 @@ class RepositoryContractTests(unittest.TestCase):
         self.assertTrue(hasattr(audit_guard, "validate_quality_package"))
         self.assertTrue(hasattr(audit_guard, "derive_technical_conclusion"))
         self.assertTrue(hasattr(audit_guard, "validate_external_release"))
+        self.assertTrue(hasattr(audit_guard, "verify_atlas"))
+
+    def test_guides_do_not_advertise_unbundled_skills_as_included(self):
+        """C1 (3-AI review 2026-08): a public guide must not present a skill as
+        bundled/auto-launching unless it actually ships in skills/. Skills only in
+        the author's local setup must be labelled 'not yet bundled'."""
+        shipped = {p.name for p in (ROOT / "skills").iterdir() if p.is_dir()}
+        disclaimers = ("まだ同梱していません", "not yet bundled")
+        for name in ("simple-guide.md", "simple-guide-en.md"):
+            text = (ROOT / "docs" / name).read_text(encoding="utf-8")
+            for skill in ("quality-audit-loop", "code-translate"):
+                if skill in shipped:
+                    continue
+                if skill in text:
+                    self.assertTrue(
+                        any(d in text for d in disclaimers),
+                        f"{name} mentions unbundled '{skill}' without a not-bundled disclaimer",
+                    )
 
     def test_standards_are_versioned_and_claim_language_is_non_certifying(self):
         skill_root = ROOT / "skills" / "ai-audit"
@@ -115,12 +133,12 @@ class RepositoryContractTests(unittest.TestCase):
         self.assertTrue((audit / "quality-profile.json").is_file())
         self.assertTrue((audit / "requirements-matrix.csv").is_file())
 
-    def test_public_docs_describe_v1_7_without_inflated_assurance_language(self):
+    def test_public_docs_describe_v1_8_without_inflated_assurance_language(self):
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
         manual = (ROOT / "docs" / "index.html").read_text(encoding="utf-8")
 
         for text in (readme, manual):
-            self.assertIn("v1.7", text)
+            self.assertIn("v1.8", text)
             self.assertIn("quality-profile.json", text)
             self.assertIn("requirements-matrix.csv", text)
             self.assertIn("安全関連", text)

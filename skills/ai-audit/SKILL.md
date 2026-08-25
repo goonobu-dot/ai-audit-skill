@@ -88,13 +88,17 @@ python3 "$SKILL_DIR/scripts/security_gate.py" gen-sbom "$TARGET_ROOT" --output "
 
 別系統AI(既定はCodex/OpenAI。Cursor経由のGrok等でも可)へ渡すのは仕様書、監査対象コード、監査観点だけとし、実装者の説明や先行レビュー結論を渡さない。モデル名は固定せず、環境変数で選べるようにする。
 
+> **正直な限界(3社会議2026-08):認知的独立性は"規律"であって機械強制ではない。** 同一チャットで実装→監査すると、READMEやコメント経由で実装者の説明が監査AIへ混入しうる。これを機械が完全に遮断はしない。したがって独立性を主張するなら、①監査は新規セッションで、②渡すのは仕様・対象コード・観点のみ(build-prompt-bundle経由)、③実装AIと別提供元/別モデルを使う——を運用で守り、守れない場合(縮退・同一系統)は報告書へ「独立性:限定」と明記して技術評価結論を安易に `acceptable` にしない。`finder_class=ai_cross` は、独立レビューで初回未検出→別系統検出が実際に記録できた指摘にのみ付ける。
+
 ### 送信前DLP(外部LLMへ何を出すか)= 機械強制
 
 **外部LLMへコードを送る時点で、それ自体が「外に出したくないコード」の外部送信になる**。これを手順の心得で終わらせず、**同梱ガードで機械的に処理する**:
 
 ```bash
-# 既定=redactモード: 全文脈を送るが秘密・PIIをマスク(外部AIの能力を落とさず漏洩を防ぐ)
-python3 "$SKILL_DIR/scripts/security_gate.py" build-prompt-bundle "$TARGET_ROOT" --output "$BUNDLE_DIR"
+# 既定=redactモード: 全文脈を送るが既知の秘密・PIIをマスク(外部AIの能力を落とさない。ただし網羅ではない=未知形式の秘密や氏名/住所は残りうる)
+# --output は「存在しない新規パス」を渡す(既存の他ディレクトリは削除せず拒否される)。宛先/モデルを台帳へ:
+python3 "$SKILL_DIR/scripts/security_gate.py" build-prompt-bundle "$TARGET_ROOT" \
+  --output "$BUNDLE_DIR" --destination codex --model "$AI_AUDIT_CODEX_MODEL"
 # 機密性が極端に高い場合=allowlistモード: 許可パスだけ送る(文脈は減る)
 python3 "$SKILL_DIR/scripts/security_gate.py" build-prompt-bundle "$TARGET_ROOT" \
   --output "$BUNDLE_DIR" --mode allowlist --allow "$ALLOW_MANIFEST"
@@ -166,7 +170,12 @@ codex exec resume -c 'sandbox_mode="read-only"' <SESSION_ID> \
 
 3. 封印は明示承認された生成物の出力パスだけを除き、監査範囲内の**全追跡ファイル**を対象とする。未追跡ファイルがあれば作成を失敗させ、先に範囲判断を求める。
    除外は、実際に生成物として承認された相対パスだけを `--exclude` で個別指定する。`atlas/` も自動除外せず、今回生成した出力である場合だけ追加する。同名のアプリソースを除外しない。
+   **除外できるのは生成物dir(audit/ atlas/ critical-review/ 等の許可された名前)だけに機械制限される**(3社会議2026-08:除外リストを自己申告で信用すると、全ソースを除外+空artifactsの「空の封印」が valid になるバイパスがあった)。ソースを除外しようとする封印、0ファイルの封印は `create-seal`/`verify-seal` が拒否する。
 4. 静的なJSONが自動で表示を変えるわけではない。再利用・公開・納品前に `verify-seal` を実行し、非ゼロ終了なら技術評価結論を失効扱いにする。
+   **生成物ビュー(atlas/critical-review)は封印から除外されるため、代わりに `verify-atlas` でソースとの整合を機械検査する**(引用行の実在・記載行数・ソースhash一致)。生成後にソースが変わると陳腐化して「機械確認済み」の表示だけが残るため、公開・納品前に必ず実行する:
+   ```bash
+   python3 "$SKILL_DIR/scripts/audit_guard.py" verify-atlas "$OUTPUT_DIR/atlas/index.html" "$TARGET_ROOT/<source>"
+   ```
 5. 成果物の秘密値スキャンと証拠リンク確認を終えてから納品する。外部共有前は必ず次を実行し、終了コード0と実行日時・対象パスを調書へ記録する。バイナリや上限超過で検査不能なら非ゼロとなるため、そのファイルを共有bundleから除外する。別手段で人間が確認・承認したバイナリは別経路で共有し、ハッシュと承認記録だけを調書へ残す。非ゼロのbundle自体を例外承認で共有しない。
 
    ```bash
