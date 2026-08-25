@@ -1,52 +1,73 @@
 ---
 layout: guide
 title: ai-audit in 3 Steps — Simple Guide
-description: Have a different AI audit your AI-built app, and fix it until it passes — the gentlest way in, no code-reading required
+description: Have several different AIs audit your AI-written code and fix it until it passes — get closer to safe, quality code even if you can't read code
 permalink: /simple-guide-en.html
 ---
 
-# ai-audit in 3 Steps — Simple Guide
+# Your first look at ai-audit — what is this?
 
-This is the gentlest possible introduction. **You do not need to read code to use it.** We skip the configuration details and answer just two questions: *what is it good for*, and *how do you start it*.
+> You had an AI build your app. **It runs. But is it doing anything strange inside? Is it actually safe? You can't tell for yourself —**
+> This tool answers that worry head-on.
+
+You do **not** need to read code. This page skips the jargon and explains, in order, just two things: **what it's good for** and **how to use it**.
 
 ---
 
-## First — what is this tool for?
+## Why this matters now
 
-More and more people have AI build their apps and systems. But you have probably felt this:
+Today, even non-engineers can build real apps and business systems just by instructing an AI. Wonderful — but it comes with nagging doubts:
 
-> "It runs... but is it doing anything weird inside? I can't actually tell if it's safe."
+- 🔑 "Could it accidentally **leak** a customer's personal data, or a password or key?"
+- 🤖 "Is it quietly doing **something I never asked for**?"
+- 📦 "Is it using an old, **known-vulnerable component (library)**?"
 
-ai-audit answers that worry. Instead of asking the AI that **wrote** the code to check its own work, it has **a different company's AI (OpenAI's Codex, xAI's Grok) audit it with a stranger's eyes.**
+An engineer would read the code and check. But **for a non-engineer, that isn't easy** — and trusting "an AI made it, so it's fine" is dangerous.
 
-### Why "a different AI"? — this is the whole point
+**ai-audit takes over that "checking" work for you — and crucially, it does not hand the job to a single AI.**
 
-In the human world, you miss the typos in your own writing, but someone else spots them instantly. AI is the same: **the AI that built the code carries the assumption "I'm sure I wired that up correctly,"** so it overlooks its own mistakes.
+---
 
-So we bring in **a separate-lineage AI that did not build it** and let it look without sharing those assumptions. We call this **cognitive independence.** While building this very tool, independent AIs repeatedly found defects the building AI missed — *with reproduction steps* — and some of them were bugs in this tool's own code.
+## The heart of it: reviewed by "eyes other than the maker's"
 
-### What you actually get (in plain words)
+This is the most important idea.
 
-| Situation | With ai-audit |
+Even for humans, **you miss the typos in your own writing, but a stranger spots them instantly.** AI is exactly the same: **the AI that wrote the code carries the assumption "I'm sure I got it right,"** so it overlooks its own mistakes.
+
+So ai-audit has **a different company's AI — one that did not build the code** — audit it without those assumptions. We call this **cognitive independence.** It sounds fancy, but it just means: **let a third party who isn't the maker look at it with fresh eyes.**
+
+### And more — several different-vendor AIs beat one
+
+Here's the thing we most want you to see.
+
+**The more different-vendor AIs you add — two, then three — the more they each find *different* holes,** because each AI has different strengths and different "habits" of looking.
+
+This isn't theory. Here is **what actually happened when we had three AIs audit ai-audit itself.** The AI that built it (Claude) had left defects in — and the other companies' AIs found them, but **each AI found a *different* set of holes:**
+
+| Which AI | Holes it found (real examples) |
 |---|---|
-| Before shipping an AI-built app | Machine gates stop secret keys and personal data from slipping in |
-| Delivering to a company or client | You hand over not just "it works" but an **evidence-backed report**: what was checked, how far, and what is still unverified |
-| You can't tell what's inside | There's a record a security expert can pick up — the basis for the judgment |
-| You want higher quality | Independent AI audit surfaces problems; you fix, re-audit, and repeat **until no serious problems remain** |
+| **Grok (xAI / via Cursor)** | · A deletion-permission check that could be **spoofed with a single marker file**<br>· A "highest severity" vuln (CVSS 9.8) **misread as "low"** and missed<br>· A wrong line-count on a sample screen |
+| **Codex (OpenAI)** | · A **bypass** when the input path is a shortcut (symlink)<br>· **Broken/forged scan results** read as "all clear"<br>· A scan that said "whole history" but really **only looked at current files**<br>· An empty "seal" that could be created covering **zero files** |
 
-> ⚠️ **An honest disclaimer:** This tool does **not** guarantee that software is "safe." Its job is to **show, without hiding anything, what was checked and what is still unverified.** It never relabels "not tested" as "safe." That honesty is exactly where its value lies.
+👉 **Notice this: Grok and Codex found entirely *separate* holes.** With only one AI, half of this table would have stayed hidden. And in the very first round, **both AIs agreed on the same critical bugs** (like a data-loss risk) — so: everyone flags the big ones, and they divide up the subtle ones between them.
+
+**Just by having several different-vendor AIs audit it, security and quality measurably improved this much.** That is the core value of this tool.
+
+> ⚠️ **An honest disclaimer:** even so, this tool does **not** guarantee "safe." Its job is to **show, without hiding anything, what was checked and what is still unverified.** It never relabels "not tested" as "safe." That honesty is the point.
 
 ---
 
-## What's in this public repository
+## How many AIs do I need? (Two is fine, three is recommended)
 
-Clone it and you immediately get two skills plus the entry-gate scripts:
+Plenty of people don't subscribe to Cursor (Grok). That's fine.
 
-- **`ai-audit`** — runs the cross-vendor audit and produces a **technical audit report** linking requirements, tests, evidence, and unverified items.
-- **`code-atlas`** — visualizes the internals as diagrams and key-point cards so a non-engineer can "grasp it instead of reading it."
-- **`security_gate`** (scripts) — machine gates that stop secrets, personal data, and vulnerable dependencies *before* they get in.
+| Setup | Where it stands |
+|---|---|
+| **Claude + Codex (two)** | ✅ **Officially supported, minimum setup.** One set of non-maker eyes — cognitive independence holds |
+| **Claude + Codex + Cursor (Grok) (three)** | ⭐ **Recommended.** You can rotate auditors each round and, as the table above shows, catch more *different* holes |
+| Claude only (one) | Degraded mode. No independence, so it won't casually call anything "passed" |
 
-> ℹ️ The convenience trigger that "runs the whole loop from one sentence" (`quality-audit-loop`) is a **separate add-on skill** in the author's own setup and is **not yet bundled** in this public repo (its trigger design is being revised to prevent accidental launches). The 3 steps below rely only on the bundled `ai-audit`.
+So **start with two (Claude + Codex).** When you want a stricter look, add the third (Grok via Cursor) and more surfaces. If only one is available, the tool honestly writes that fact (auditors can't be rotated) into the report.
 
 ---
 
@@ -54,63 +75,56 @@ Clone it and you immediately get two skills plus the entry-gate scripts:
 
 ### Step 1 — Have your AI read this project
 
-Point your AI (Claude Code / Codex, etc.) at this repository. The easiest way is simply to say:
+Just tell your AI (Claude Code / Codex, etc.):
 
 ```
 Read https://github.com/goonobu-dot/ai-audit-skill
 and add this skill to my project.
 ```
 
-Your AI now recognizes `ai-audit` and `code-atlas`.
+Your AI now recognizes `ai-audit` (the audit) and `code-atlas` (the internals view).
 
 ### Step 2 — Build your app as usual
 
-Have the AI build your app or system the way you normally would. **You don't need to think about auditing while you build.**
+Have the AI build your app the way you normally would. **You don't need to think about auditing while you build.**
 
 ### Step 3 — When you're done, say this one line
-
-Once the code is finished, just tell the AI:
 
 ```
 Audit the code and produce the report.
 ```
 
-`ai-audit` starts, and:
+Then:
 
-1. 🔒 **Machine gates** — check for secret keys, personal data, and known-vulnerable dependencies (and honestly report NOT-TESTED when a dedicated tool isn't installed)
-2. 🔍 **Independent AI audit** — Codex and Grok hunt for defects using only the spec and the code, *without* the building AI's explanations (note: this "no explanations" independence is a discipline you follow, not something the machine enforces — auditing right after building in the same chat weakens it)
-3. 📋 **Evidence-backed report** — what was checked, what was found, what remains unverified — plus a tamper-evident seal
+1. 🔒 **Machine checks** — for secret keys, personal data, and dangerous old components (honestly reporting NOT-TESTED when a dedicated tool isn't installed)
+2. 🔍 **Independent audit by other companies' AIs** — Codex (and Grok, if available) hunt for defects using only the spec and code, *without* the building AI's explanations
+3. 📋 **Evidence-backed report** — what was checked, what was found, what remains unverified
 
-### To "finish it until it passes" (running the loop)
+### To "finish it until it passes"
 
-Don't stop at one audit — loop until nothing serious remains:
+Don't stop at one pass — loop until no serious findings remain: "audit" → **fix** the findings → "audit again (ideally with a different AI)."
 
-1. "Audit the code" → receive the report
-2. **Fix** the findings (fixing and auditing are approved separately)
-3. "Audit again" → re-audit from a fresh angle / a different AI
-4. Repeat 2–3 until no serious findings remain
-
-> 💡 Auditing uses external AI (your own Codex / Cursor subscription) — a slightly heavy step. When several rounds are likely, the recommended practice is for the AI to first say "here's the scope, roughly this many rounds" before proceeding.
+> 💡 Auditing uses external AI (your own Codex / Cursor subscription) — a slightly heavy step. When several rounds are likely, the AI first says "here's the scope, roughly this many rounds" before proceeding.
 
 ---
 
 ## FAQ
 
 **Q. I can't read code — will the report make sense to me?**
-A. The report is a mapping table: *requirement → test performed → result → evidence.* And `code-atlas` visualizes the internals as diagrams and cards. Just say "explain the internals in plain language." Note the visualization is **not** all-seeing either: blind spots (parts it could not analyze) are shown in red, never green.
+A. The report is a mapping: *requirement → test performed → result → evidence.* And `code-atlas` visualizes the internals as diagrams and cards — just say "explain the internals in plain language." The visualization isn't all-seeing either: blind spots it can't follow are shown in red, never green.
 
-**Q. Could my code or my secrets leak to the external AI?**
-A. Before anything goes to an external AI, it passes through a pre-send gate that masks **known-format** secrets and personal data. But this is **not exhaustive** — unknown-format secrets and things like names/addresses can survive, so a human reviews the bundle (transmission-ledger.json) before sending. And if *the code itself* is confidential, masking values does not by itself make it safe to send. Tools that send code to the cloud were deliberately not adopted, so the leak-prevention tool never becomes the leak.
+**Q. Could my code or secrets leak to the external AI?**
+A. Before anything goes out, a pre-send gate masks **known-format** secrets and personal data. But it's **not exhaustive** — unknown-format secrets and things like names/addresses can survive, so a human reviews the bundle before sending. And if *the code itself* is confidential, masking values doesn't by itself make it safe to send.
 
-**Q. Can I then declare it "safe"?**
-A. No — and that's the correct posture. What this tool gives you is not a declaration of safety, but **an honest map of what was checked and what has not yet been checked.** The final judgment stays with a human.
+**Q. So, can I declare it "safe"?**
+A. No — and that's the correct posture. What you get is not a declaration of safety, but **an honest map of what was checked and what hasn't been.** The final judgment stays with a human.
 
 ---
 
 ## Read next
 
-- [Getting Started (5 minutes)](getting-started.html) — for when you want to get hands-on
-- [The Machine Gates at the Entrance — usage & philosophy](security-gates.html) — stopping leaks *before* they get in
+- [Getting Started (5 minutes)](getting-started.html)
+- [The Machine Gates at the Entrance — usage & philosophy](security-gates.html)
 - [日本語:3ステップで使う ai-audit](simple-guide.html)
 - Full manual (Japanese): [index](index.html)
 
