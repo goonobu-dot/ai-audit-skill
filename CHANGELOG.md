@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.8.0 - 2026-08-25
+
+3社会議(Claude・Codex・Grok独立)による「仕組みそのもの」の再監査で、別系統AIが**実装AIの見落とした欠陥を再現手順つきで検出**。複数ラウンドで修正・再監査し、回帰テストと機械ゲートを追加した。**注:再監査はラウンドごとにまだ新たな残穴を指摘しており(これ自体が独立監査に実利がある証拠)、本版は「既知欠陥を塞いだPreview」であって「全欠陥をクローズした」ものではない。**
+
+- **[重大・修正]** `build-prompt-bundle` が `--output` 先の既存ディレクトリを無条件 `rmtree` しうるデータ消失リスクを修正。**このツールは既存ファイルを一切削除しない**——出力先は新規/空のディレクトリのみ許可し、非空の既存ディレクトリ・home/root・(語彙/解決後の)シンボリックリンクを拒否。失敗時も自ラン生成分のみ後始末する
+- **[重大・修正]** 封印(seal)の除外リストを自己申告で信用していたため、全ソースを除外+空 `artifacts` の「空の封印」が `valid` になるバイパスを修正。除外は生成物dirのみ許可し、0ファイル封印を拒否(`create-seal`/`verify-seal` 両方)
+- **[重大・修正]** 依存脆弱性スキャン(`scan-deps`)の fail-open を修正。空結果・`results`キー欠落・scanner異常終了を NOT-TESTED(exit 3)に、CVSSベクトルを数値評価(9.8=Critical等)、重大度不明はブロッキング扱い。CIの `|| true` を廃止しscanner失敗を伝播
+- **[修正]** 非エンジニア向けサンプル `atlas/index.html` が旧コード(memo.py 111行時代)を「機械確認済み」と表示していた陳腐化を、現行(189行)へ再生成。生成物の整合を機械検査する `verify-atlas` を追加しCIに接続。`critical-review` は原理的盲点が残る限り緑(ok)にせず conditional で止めるよう判定を修正
+- **[修正]** 送信前DLPを `external=True`(外部bundleに秘密の指紋を残さない)へ、台帳から端末の絶対パスを除き、宛先(`--destination`)・モデル(`--model`)を記録。`gate-commit` は gitleaks 不在時に「clean」と言わず NOT-TESTED を返し、`--strict` で exit 3
+- **[整合]** AA-8.9(外部LLM送信)を「redact既定・高機密はallowlist・送信前に人間確認・網羅ではない」に改訂し実装と一致。統制数・版の表記を統一(54統制、v1.8)。能力・営業セクションの誇張(「唯一の現実解」「お約束」「安心」)を、観測された再現事例と工程記述へ置換。3体AI自己評価に「利害一致・参考値」の但し書きを明記
+- **[テスト]** 上記バイパスの回帰テスト(`tests/test_review_fixes.py`)16件を追加
+
 ## 1.7.0 - 2026-08-25
 
 各指摘に「発見の来歴(なぜ発見できたか)」を記録する仕組みを追加。3社会議(Claude・Codex・Grok独立)で設計を確定し、コードレビューの実証研究(Bacchelli&Bird, Edmundson, Mäntylä&Lassenius, Cisco/Cohen, Rigby&Bird)とAI企業の一次研究(LLM自己選好バイアス, Anthropic Sabotage/harness-design, OpenAI CriticGPT)で各項を接地。

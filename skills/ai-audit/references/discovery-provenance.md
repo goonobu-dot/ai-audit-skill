@@ -49,7 +49,9 @@
 
 ## finding ごとに記録する来歴スキーマ
 
-**core(必須5項目)**: `lens_id` / `why_found` / `human_blindspot` / `finder_class` / `reproduction`
+> **正直な但し書き(3社会議2026-08):これらは現状「自己申告の手書きメタデータ」であり、機械検証はまだ実装していない。** `validate-report`/`validate-bundle` は結論・証拠hash・禁止表現は検査するが、来歴5項目のschema・enum・reproductionの実在までは検査しない。したがって「必須」はレビュー運用上の規律であって機械強制ではない。`finder_class=ai_cross` の件数を「独自価値の証明」や「安全の根拠」に読み替えないこと。将来、findingをJSON schema化してvalidatorに接続するまでは、来歴は"どう発見したかの申告"に留まる。
+
+**core(記録する5項目・運用上必須)**: `lens_id` / `why_found` / `human_blindspot` / `finder_class` / `reproduction`
 **extended(任意)**: `claim_checked` / `evidence_seen` / `observation` / `detection_op` / `independence`
 
 | フィールド | 内容 | 必須 |

@@ -125,8 +125,8 @@ cp -R skills/code-atlas ~/.agents/skills/
 # コミット前ゲート: staged変更の秘密を gitleaks + パターンの両方で検査し、どちらかが見つけたら止める
 python3 scripts/security_gate.py gate-commit .
 
-# 外部AIへ渡す前のDLP: 既定は全文脈を送りつつ秘密・PIIをマスク(外部AIの能力を落とさず漏洩を防ぐ)
-python3 scripts/security_gate.py build-prompt-bundle <repo> --output <外部一時dir>
+# 外部AIへ渡す前のDLP: 既定は文脈を保ちつつ既知の秘密・PIIをマスク(網羅ではない。送信前に人手確認)
+python3 scripts/security_gate.py build-prompt-bundle <repo> --output <新規/空dir> --destination codex --model <model>
 
 # 依存の既知脆弱性(SCA)とSBOM: 依存の読み取り検査だけで、実装能力は制限しない
 python3 scripts/security_gate.py scan-deps <repo>                    # osv-scanner。Critical/Highで停止
@@ -137,7 +137,7 @@ python3 scripts/security_gate.py gen-sbom <repo> --output sbom.cdx.json  # syft�
 
 3つのゲートの使い方と設計思想は[入口の機械ゲート(使い方と思想)](https://goonobu-dot.github.io/ai-audit-skill/security-gates.html)にまとめています。
 
-`gate-commit` は [templates/pre-commit-config-template.yaml](skills/ai-audit/templates/pre-commit-config-template.yaml) を `.pre-commit-config.yaml` として置けば毎コミット自動で走ります。`build-prompt-bundle` は「全部送るが秘密だけマスク(redact)」が既定で、機密性が極端に高いときだけ許可リスト方式(`--mode allowlist`)に切り替えます。秘密がマスクを生き延びたら束を作らず失敗します(fail-close)。
+`gate-commit` は [templates/pre-commit-config-template.yaml](skills/ai-audit/templates/pre-commit-config-template.yaml) を `.pre-commit-config.yaml` として置けば毎コミット自動で走ります。`build-prompt-bundle` は「文脈を保ちつつ既知の秘密だけマスク(redact)」が既定で、機密性が極端に高いときだけ許可リスト方式(`--mode allowlist`)に切り替えます。既知パターンの秘密がマスクを生き延びたら束を作らず失敗します(fail-close)が、**未知形式の秘密や氏名・住所は取りこぼしうるため網羅ではなく、外部AIへ渡すこと自体がコードの外部送信である点を含め、送信前に人手で `transmission-ledger.json` を確認します**。
 
 ## 付属:code-atlas(コードを読めない人が中身を見る)
 
@@ -167,7 +167,7 @@ critical-review は「見せかけの安心」を避ける設計憲法に従い�
 
 ## 重要な境界
 
-> Status: v1.7
+> Status: v1.8
 
 これは限定範囲の技術的検証です。認証、第三者保証、法定検査、App Store承認、契約検収、運転許可、安全性の保証を意味しません。
 

@@ -18,8 +18,9 @@
   .verdict.pending { background:#fdf6e3; border:2px solid #b8860b; }
   .verdict.blocked { background:#fdf1f1; border:2px solid #ec0000; }
   .verdict.ok { background:#eef7f1; border:2px solid #197a4b; }
+  .verdict.conditional { background:#fdf6e3; border:2px solid #b8860b; }
   .verdict .big { font-size:22px; font-weight:700; }
-  .verdict.pending .big { color:#8a6508; } .verdict.blocked .big { color:#a30000; } .verdict.ok .big { color:#197a4b; }
+  .verdict.pending .big { color:#8a6508; } .verdict.blocked .big { color:#a30000; } .verdict.ok .big { color:#197a4b; } .verdict.conditional .big { color:#8a6508; }
   .verdict .desc { font-size:13.5px; color:#414143; }
   .split { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin:16px 0; }
   .panel { border:1px solid #d8d8db; border-radius:10px; padding:12px 14px; }
@@ -90,7 +91,7 @@
 <div class="coverage">
   <table>
     <tr><th>解析対象</th><th>状態</th><th>備考</th></tr>
-    <tr><td>memo.py(本体・190行)</td><td><span class="tag analyzed">解析済</span></td><td>全行をパターン走査</td></tr>
+    <tr><td>memo.py(本体・189行)</td><td><span class="tag analyzed">解析済</span></td><td>全行をパターン走査</td></tr>
     <tr><td>外部依存パッケージ</td><td><span class="tag none">なし</span></td><td>標準ライブラリのみ(os/ctypes/errno/stat/sys/time)</td></tr>
     <tr><td>ネイティブ呼び出し(libc)</td><td><span class="tag blind">盲点</span></td><td>ctypes経由。行を読んでも実挙動は追えない → 急所#Aで開示</td></tr>
     <tr><td>設定・環境・CI/デプロイ</td><td><span class="tag none">対象外</span></td><td>本サンプルにCI/デプロイ設定なし(実プロジェクトでは要解析)</td></tr>
@@ -306,6 +307,10 @@
     });
   });
 
+  // 憲法(3AIレビュー2026-08で機械化): 原理的な盲点カードが1件でもあれば、
+  // すべて「許可」でも緑(ok)にしない。盲点の存在自体が「網羅した」を否定するため、
+  // 最良でも conditional(条件付き・非緑)で止め、専門家検証の併用を促す。
+  var blindTotal = document.querySelectorAll('.blindcard[data-card]').length;
   function recompute(){
     var answered = 0, deny = 0, unknown = 0;
     cards.forEach(function(card){
@@ -325,10 +330,14 @@
       v.className = 'verdict blocked';
       big.textContent = '出してはいけない';
       desc.textContent = 'あなたが「禁止/おかしい」と判断した急所が '+deny+' 件あります。修正するまで出荷しないでください。';
+    } else if(blindTotal > 0){
+      v.className = 'verdict conditional';
+      big.textContent = '条件付き(盲点あり)';
+      desc.textContent = '全ての急所をあなたが根拠付きで確認しましたが、原理的な盲点(ネイティブ呼び出し等 '+blindTotal+' 件)が残ります。盲点は「行を読んでも追えない」領域であり、この画面は"安全"を示しません。高リスク用途は専門家の検証を必ず併用してください。';
     } else {
       v.className = 'verdict ok';
-      big.textContent = '全急所をあなたが確認';
-      desc.textContent = '全ての急所を根拠付きで確認し許可しました。ただし「盲点(ネイティブ呼び出し等)」と「未実施の解析(AST/実行時観測)」が残ることは前提です。これは"安全の証明"ではなく"急所をあなたが見た"記録です。高リスク用途は専門家の検証を併用してください。';
+      big.textContent = '全急所をあなたが確認(盲点なし)';
+      desc.textContent = '全ての急所を根拠付きで確認し許可しました。既知の原理的盲点は残っていません。ただし未実施の解析(実行時観測等)がある場合はその限りで、これは"安全の証明"ではなく"急所をあなたが見た"記録です。';
     }
   }
   recompute();

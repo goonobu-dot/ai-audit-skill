@@ -21,6 +21,42 @@ SCHEMA_VERSION = 2
 QUALITY_PROFILE_SCHEMA_VERSION = 1
 QUALITY_PROFILE_VERSION = "1.3.0"
 DEFAULT_EXCLUSIONS: tuple[str, ...] = ()
+
+# A seal may narrow its scope ONLY by excluding generated-output / VCS-noise
+# directories — never real source. This closes the "hollow seal" bypass Codex
+# reproduced in the 3-AI review (2026-08): excluding all source + empty artifacts
+# made verify-seal report ``valid``. The scope policy is fixed in code, not
+# self-declared by the seal being verified.
+ALLOWED_SEAL_EXCLUSION_ROOTS: frozenset[str] = frozenset({
+    "audit", "atlas", "critical-review",
+    ".git", "node_modules", ".venv", "venv", "__pycache__",
+    ".mypy_cache", ".pytest_cache", ".ruff_cache", "dist", "build",
+    ".next", ".turbo",
+})
+
+
+def _exclusion_root(entry: str) -> str:
+    return entry.strip().strip("/").split("/", 1)[0]
+
+
+def _tampering_exclusions(exclusions: Iterable[str]) -> list[str]:
+    """Return exclusion entries that are NOT allowed (i.e. would hide real source).
+
+    Rejects absolute paths and any ``..`` traversal outright (Grok re-audit
+    2026-08), then requires the top path component to be an allowed generated dir.
+    """
+    bad: set[str] = set()
+    for entry in exclusions:
+        entry = entry.strip()
+        if not entry:
+            continue
+        if entry.startswith("/") or ".." in entry.split("/"):
+            bad.add(entry)
+            continue
+        root = _exclusion_root(entry)
+        if root and root not in ALLOWED_SEAL_EXCLUSION_ROOTS:
+            bad.add(root)
+    return sorted(bad)
 CORE_STANDARDS = {
     "AI-AUDIT": "1.3.0",
     "ISO-IEC-25010": "2023",
@@ -319,6 +355,12 @@ def create_seal(
     if seal_relative and not _is_excluded(seal_relative, exclusions):
         exclusions.append(seal_relative)
     exclusions = tuple(exclusions)
+    tampering = _tampering_exclusions(exclusions)
+    if tampering:
+        raise ValueError(
+            "create-seal: exclusions may only cover generated-output dirs, not source: "
+            + ", ".join(tampering)
+        )
     modified = _modified_files(repo, exclusions)
     if modified:
         raise ValueError("modified audited files must be committed first: " + ", ".join(modified))
@@ -334,6 +376,11 @@ def create_seal(
         if not candidate.is_file():
             raise ValueError(f"tracked non-file entry is not sealable: {path}")
         artifacts[path] = _sha256(candidate)
+    if not artifacts:
+        raise ValueError(
+            "create-seal: refusing to write a seal that covers zero files "
+            "(scope hollowed). Check the target and exclusions."
+        )
     manifest = json.dumps(artifacts, sort_keys=True, separators=(",", ":")).encode("utf-8")
     seal: dict[str, object] = {
         "schema_version": SCHEMA_VERSION,
@@ -366,6 +413,16 @@ def verify_seal(repo: Path | str, seal_path: Path | str) -> list[str]:
     if not isinstance(expected, dict):
         return ["invalid seal: artifacts must be an object"]
 
+    # C6 fix (3-AI review 2026-08, Codex): reject seals that hollow their own scope.
+    tampering = _tampering_exclusions(exclusions)
+    if tampering:
+        return [
+            "seal excludes non-generated path(s) — scope tampering; a seal may only "
+            "exclude generated-output dirs, not source: " + ", ".join(tampering)
+        ]
+    if not expected:
+        return ["seal covers zero files (scope hollowed)"]
+
     errors: list[str] = []
     manifest = json.dumps(expected, sort_keys=True, separators=(",", ":")).encode("utf-8")
     manifest_digest = f"sha256:{hashlib.sha256(manifest).hexdigest()}"
@@ -385,6 +442,63 @@ def verify_seal(repo: Path | str, seal_path: Path | str) -> list[str]:
             errors.append(f"missing: {path}")
         elif _sha256(candidate) != expected[path]:
             errors.append(f"hash mismatch: {path}")
+    return errors
+
+
+def verify_atlas(atlas_path: Path | str, source_path: Path | str) -> list[str]:
+    """Check that a generated code-atlas/critical-review view is not stale.
+
+    Generated views are excluded from the seal (they are derived, not source), so
+    the seal cannot catch them drifting from the code. This machine check verifies
+    STRUCTURE, not verbatim wording: the view must carry at least one
+    ``<basename>:START-END`` cite; every cite must reference lines that exist; any
+    stated line count and any recorded ``sha256:`` must match the current source.
+    It does NOT claim the quoted text is byte-identical to the source (a readable
+    atlas reformats code) — that fidelity is confirmed by a human / independent AI.
+    Closes the "stale atlas shown as machine-verified" finding (3-AI review 2026-08).
+    """
+    atlas_path = Path(atlas_path).resolve()
+    source_path = Path(source_path).resolve()
+    try:
+        html = atlas_path.read_text(encoding="utf-8")
+    except OSError as error:
+        return [f"cannot read atlas: {error}"]
+    try:
+        source_bytes = source_path.read_bytes()
+    except OSError as error:
+        return [f"cannot read source: {error}"]
+    source_lines = source_bytes.decode("utf-8", errors="replace").splitlines()
+    n_lines = len(source_lines)
+    base = re.escape(source_path.name)
+    errors: list[str] = []
+
+    cite_re = re.compile(base + r":(\d+)(?:-(\d+))?")
+    cites = list(cite_re.finditer(html))
+    if not cites:
+        errors.append(f"no evidence cites ({source_path.name}:START-END) found in the view")
+    for match in cites:
+        start = int(match.group(1))
+        end = int(match.group(2)) if match.group(2) else start
+        if start < 1 or start > end or end > n_lines:
+            errors.append(
+                f"stale cite {match.group(0)}: out of range (source has {n_lines} lines)"
+            )
+
+    # A stated line count near the basename must equal the real count. The window
+    # is non-digit chars only, so a cite like ``memo.py:57-68`` cannot bleed into a
+    # later number. Matches JP ``…189行`` and EN ``…189 lines`` (Grok re-audit
+    # 2026-08: ``memo.py(本体・190行)`` slipped past the previous narrow pattern).
+    count_re = re.compile(base + r"[^0-9\n]{0,40}?(\d+)\s*(?:行|lines?\b)")
+    stated_counts = {int(m.group(1)) for m in count_re.finditer(html)}
+    for count in sorted(stated_counts):
+        if count != n_lines:
+            errors.append(f"stated line count {count} != actual {n_lines}")
+
+    actual_sha = "sha256:" + hashlib.sha256(source_bytes).hexdigest()
+    for match in re.finditer(r"sha256:[0-9a-f]{64}", html):
+        if match.group(0) != actual_sha:
+            errors.append(f"recorded {match.group(0)} != actual source {actual_sha}")
+
     return errors
 
 
@@ -1393,6 +1507,11 @@ def _build_parser() -> argparse.ArgumentParser:
     verify = subparsers.add_parser("verify-seal", help="verify a v2 source seal")
     verify.add_argument("repo", type=Path)
     verify.add_argument("seal", type=Path)
+    atlas = subparsers.add_parser(
+        "verify-atlas", help="check a generated atlas/critical-review view is not stale vs its source"
+    )
+    atlas.add_argument("atlas", type=Path)
+    atlas.add_argument("source", type=Path)
     bundle = subparsers.add_parser("validate-bundle", help="validate an example audit bundle")
     bundle.add_argument("root", type=Path)
     quality = subparsers.add_parser(
@@ -1483,6 +1602,8 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if args.command == "verify-seal":
         errors = verify_seal(args.repo, args.seal)
+    elif args.command == "verify-atlas":
+        errors = verify_atlas(args.atlas, args.source)
     elif args.command == "scan-artifacts":
         errors = scan_artifacts(args.root, external=args.external)
     elif args.command == "validate-quality":
